@@ -1,5 +1,12 @@
 <%- include('partials/header', { title: 'Résultat', nav: 'game' }) %>
-<div class="result-card">
+<div
+    class="result-card"
+    data-correct="<%= correct %>"
+    data-target-id="<%= target.id %>"
+    data-target-text="<%= target.text %>"
+    data-difficulty="<%= target.difficulty %>"
+    data-mode="<%= mode %>"
+>
     <%_ if (correct) { _%>
     <p class="verdict correct">Bien vu !</p>
     <p class="verdict-sub">C’était bien <b><%= target.text %></b>.</p>

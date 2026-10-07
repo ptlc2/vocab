@@ -733,6 +733,20 @@ a.badge:hover {
     margin: 24px 0 0;
 }
 
+.game-stats {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin: 20px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.game-stats b,
+.progress-line b {
+    color: var(--text);
+}
+
 /* ------------------------------------------------------------------ résultat */
 
 .result-card {
@@ -829,6 +843,90 @@ a.badge:hover {
     margin: 0;
     color: var(--muted);
     font-size: 0.92rem;
+}
+
+.progress-block {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+}
+
+.progress-line {
+    margin: 0 0 6px;
+    font-size: 0.92rem;
+}
+
+.progress-line.muted {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.progress-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 28px;
+}
+
+.progress-summary p {
+    margin: 0;
+}
+
+.progress-summary .muted {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.progress-summary .btn {
+    align-self: flex-start;
+    margin-top: 12px;
+}
+
+.progress-group-title {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 28px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.progress-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.progress-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.progress-word {
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.progress-word:hover {
+    text-decoration: underline;
+}
+
+.progress-meta {
+    color: var(--muted);
+    font-size: 0.8rem;
 }
 
 /* ------------------------------------------------------------------ erreurs */

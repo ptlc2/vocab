@@ -62,13 +62,22 @@ app.get('/words/:word', async (req, res) => {
         res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
     }
 });
-
 // Game route
 app.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.mot, 10);
+    const maxId = Number.parseInt(req.query.max, 10);
     const mode = req.query.mode === 'distinction' ? 'distinction' : req.query.mode === 'acquisition' ? 'acquisition' : null;
-    const game = await Vocab.getGame({ wordId: Number.isInteger(motId) ? motId : null, mode });
+    const game = await Vocab.getGame({
+        wordId: Number.isInteger(motId) ? motId : null,
+        mode,
+        maxDifficulty: Number.isInteger(maxId) ? Math.max(1, Math.min(5, maxId)) : null,
+    });
     res.render('game', { game });
+});
+
+// Progress route
+app.get('/progress', (req, res) => {
+    res.render('progress');
 });
 
 // Game answer route

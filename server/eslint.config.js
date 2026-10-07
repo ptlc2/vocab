@@ -26,4 +26,12 @@ export default [
             'no-return-await': 'warn',
         },
     },
+    {
+        files: ['static/**/*.js'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+            globals: globals.browser,
+        },
+    },
 ];
