@@ -1,31 +1,18 @@
 import { Mistral } from '@mistralai/mistralai';
+import { callWithRateLimit } from './retry.js';
 
 const apiKey = process.env.MISTRAL_API_KEY;
-
-const client = new Mistral({ apiKey });
-
-let lastAPICallTime = 0;
+const client = apiKey ? new Mistral({ apiKey }) : null;
 
 export async function complete(input) {
-    if (!apiKey) {
+    if (!client) {
         throw new Error('MISTRAL_API_KEY is not set in environment variables.');
     }
-    while (Date.now() - lastAPICallTime < 1200) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    lastAPICallTime = Date.now();
-
-    let chatResponse;
-    do
-        try {
-            chatResponse = await client.chat.complete({
-                model: 'mistral-large-latest',
-                messages: [{ role: 'user', content: input }],
-            });
-        } catch (e) {
-            console.error(e);
-            continue;
-        }
-    while (false);
+    const chatResponse = await callWithRateLimit(() =>
+        client.chat.complete({
+            model: 'mistral-large-latest',
+            messages: [{ role: 'user', content: input }],
+        })
+    );
     return chatResponse.choices[0].message.content;
 }
