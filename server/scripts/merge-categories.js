@@ -53,11 +53,12 @@ try {
     const categories = await queryMany(
         `SELECT c.id, c.name, count(wc.word_id)::int AS word_count
         FROM category c
-        LEFT JOIN word_category wc ON wc.category_id = c.id
+        JOIN word_category wc ON wc.category_id = c.id
         GROUP BY c.id, c.name
+        HAVING count(wc.word_id) >= 2
         ORDER BY count(wc.word_id) DESC, c.name ASC`
     );
-    console.info(`Passe de fusion : ${categories.length} catégories.`);
+    console.info(`Passe de fusion : ${categories.length} catégories (2 mots et plus).`);
 
     let merges;
     try {
