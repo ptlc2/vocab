@@ -1,50 +1,68 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="<%= base %>/style.css">
-    <title><%= word.text %></title>
-</head>
-<body>
-    <a href="<%= base %>/">Accueil</a>
-    <h1><%= word.text %></h1>
-    <%_ difficulty = difficulties[word.difficulty]; _%>
-    <p><b>Difficulté :</b> <span title="<%= difficulty.description %>" style="color: <%= difficulty.color %>;"><%= difficulty.name %></span></p>
-    <p><b>Registre :</b> <%= word.register %></p>
-    <p><b>Définition courte :</b> <%= word.short_definition %></p>
-    <p><b>Définition longue :</b> <%= word.long_definition %></p>
-<%_ if (word.origin) { _%>
-    <p><b>Origine :</b> <%= word.origin %></p>
-<%_ } _%>
-<%_ if (word.notes) { _%>
-    <p><b>Notes :</b> <%= word.notes %></p>
-<%_ } _%>
-    <p><b>Création :</b> <time datetime="<%= word.created_at.toISOString() %>"><%= word.created_at.toLocaleString(locale) %></time></p>
-    <p><b>Modification :</b> <time datetime="<%= word.updated_at.toISOString() %>"><%= word.updated_at.toLocaleString(locale) %></time></p>
-    <p><b>Catégories :</b></p>
-    <ul>
-    <%_ word.categories.forEach(category => { _%>
-        <li><%= category.name %></li>
-    <%_ }); _%>
-    </ul>
-    <p><b>Exemples :</b></p>
-    <ul>
-    <%_ word.examples.forEach(example => { _%>
-        <li><%= example.sentence %></li>
-    <%_ }); _%>
-    </ul>
-    <p><b>Mots proches :</b></p>
-    <ul>
-    <%_ word.near_words.forEach(nearWord => { _%>
-        <li><a href="<%= base %>/words/<%= encodeURIComponent(nearWord.text) %>"><%= nearWord.text %></a></li>
-    <%_ }); _%>
-    </ul>
-    <p><b>Mots confondables :</b></p>
-    <ul>
-    <%_ word.confusions.forEach(confusion => { _%>
-        <li><a href="<%= base %>/words/<%= encodeURIComponent(confusion.text) %>"><%= confusion.text %></a> (<%= confusion.nuance %>)</li>
-    <%_ }); _%>
-    </ul>
-</body>
-</html>
+<%- include('partials/header', { title: word.text, nav: 'words' }) %>
+<%_ const difficulty = difficulties[word.difficulty]; _%>
+<article class="entry">
+    <header class="entry-head">
+        <h1><%= word.text %></h1>
+        <div class="badges">
+            <span class="badge" style="--level: <%= difficulty.color %>" title="<%= difficulty.description %>">
+                <span class="badge-dot" aria-hidden="true"></span> <%= difficulty.name %>
+            </span>
+            <span class="badge"><%= word.register %></span>
+            <%_ for (const category of word.categories) { _%>
+            <a class="badge" href="<%= base %>/words?categorie=<%= encodeURIComponent(category.name) %>"><%= category.name %></a>
+            <%_ } _%>
+        </div>
+    </header>
+
+    <p class="short-def"><%= word.short_definition %></p>
+    <p class="long-def"><%= word.long_definition %></p>
+
+    <%_ if (word.origin) { _%>
+    <section class="entry-section">
+        <h2>Origine</h2>
+        <p class="origin-text"><%= word.origin %></p>
+    </section>
+    <%_ } _%>
+
+    <%_ if (word.examples.length > 0) { _%>
+    <section class="entry-section">
+        <h2>En usage</h2>
+        <ul class="examples">
+            <%_ for (const example of word.examples) { _%>
+            <li><%= example.sentence %></li>
+            <%_ } _%>
+        </ul>
+    </section>
+    <%_ } _%>
+
+    <%_ if (word.confusions.length > 0) { _%>
+    <section class="entry-section">
+        <h2>Ne pas confondre avec</h2>
+        <div class="confusion-list">
+            <%_ for (const confusion of word.confusions) { _%>
+            <div class="confusion-card">
+                <a class="confusion-word" href="<%= base %>/words/<%= encodeURIComponent(confusion.text) %>"><%= confusion.text %></a>
+                <p><%= confusion.nuance %></p>
+            </div>
+            <%_ } _%>
+        </div>
+    </section>
+    <%_ } _%>
+
+    <%_ if (word.near_words.length > 0) { _%>
+    <section class="entry-section">
+        <h2>Mots proches</h2>
+        <div class="chips">
+            <%_ for (const nearWord of word.near_words) { _%>
+            <a class="chip" href="<%= base %>/words/<%= encodeURIComponent(nearWord.text) %>"><%= nearWord.text %></a>
+            <%_ } _%>
+        </div>
+    </section>
+    <%_ } _%>
+
+    <div class="entry-actions">
+        <a class="btn btn-primary" href="<%= base %>/game?mot=<%= word.id %>">Se tester sur ce mot</a>
+        <a class="btn btn-secondary" href="<%= base %>/words">Tous les mots</a>
+    </div>
+</article>
+<%- include('partials/footer') %>

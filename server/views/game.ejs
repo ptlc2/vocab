@@ -1,21 +1,13 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="<%= base %>/style.css">
-    <title>Vocab — jeu</title>
-</head>
-<body>
-    <a href="<%= base %>/">Accueil</a>
-    <h1><%= game.definition %></h1>
-    <form class="game" method="post" action="<%= base %>/game/answer">
-        <input type="hidden" name="target" value="<%= game.targetId %>">
-        <ul class="options">
-    <%_ for (const option of game.options) { _%>
-            <li><button type="submit" name="choice" value="<%= option.id %>"><%= option.text %></button></li>
-    <%_ } _%>
-        </ul>
-    </form>
-</body>
-</html>
+<%- include('partials/header', { title: 'Jeu', nav: 'game' }) %>
+<form class="game-card" method="post" action="<%= base %>/game/answer">
+    <p class="game-label">Quel est ce mot ?</p>
+    <p class="game-definition"><%= game.definition %></p>
+    <input type="hidden" name="target" value="<%= game.targetId %>" />
+    <ul class="options">
+        <%_ for (const option of game.options) { _%>
+        <li><button class="option-btn" type="submit" name="choice" value="<%= option.id %>"><%= option.text %></button></li>
+        <%_ } _%>
+    </ul>
+    <p class="game-hint">Une bonne réponse renforce le mot ; une erreur le fera revenir plus tard.</p>
+</form>
+<%- include('partials/footer') %>

@@ -1,25 +1,21 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="<%= base %>/style.css">
-    <title>Vocab — résultat</title>
-</head>
-<body>
-    <a href="<%= base %>/">Accueil</a>
-<%_ if (correct) { _%>
-    <h1 class="result correct">Bien vu !</h1>
-<%_ } else { _%>
-    <h1 class="result incorrect">Raté…</h1>
-    <p>Tu as choisi <a href="<%= base %>/words/<%= encodeURIComponent(choice.text) %>"><%= choice.text %></a>.</p>
-<%_ } _%>
-    <p>La bonne réponse était <a href="<%= base %>/words/<%= encodeURIComponent(target.text) %>"><%= target.text %></a>.</p>
-    <p class="definition"><%= definition %></p>
-    <p><%= target.long_definition %></p>
-<%_ if (target.examples.length > 0) { _%>
-    <p><i><%= target.examples[0].sentence %></i></p>
-<%_ } _%>
-    <a href="<%= base %>/game">Rejouer</a>
-</body>
-</html>
+<%- include('partials/header', { title: 'Résultat', nav: 'game' }) %>
+<div class="result-card">
+    <%_ if (correct) { _%>
+    <p class="verdict correct">Bien vu !</p>
+    <p class="verdict-sub">C’était bien <b><%= target.text %></b>.</p>
+    <%_ } else { _%>
+    <p class="verdict incorrect">Raté…</p>
+    <p class="verdict-sub">Tu as choisi <a href="<%= base %>/words/<%= encodeURIComponent(choice.text) %>"><%= choice.text %></a>.</p>
+    <%_ } _%>
+    <p class="result-word"><a href="<%= base %>/words/<%= encodeURIComponent(target.text) %>"><%= target.text %></a></p>
+    <p class="result-def"><%= definition %></p>
+    <p class="result-long"><%= target.long_definition %></p>
+    <%_ if (target.examples.length > 0) { _%>
+    <p class="result-example"><%= target.examples[0].sentence %></p>
+    <%_ } _%>
+    <div class="result-actions">
+        <a class="btn btn-primary" href="<%= base %>/game">Rejouer</a>
+        <a class="btn btn-secondary" href="<%= base %>/words/<%= encodeURIComponent(target.text) %>">Voir la fiche</a>
+    </div>
+</div>
+<%- include('partials/footer') %>

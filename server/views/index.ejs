@@ -1,14 +1,17 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="<%= base %>/style.css">
-    <title>Vocab</title>
-</head>
-<body>
-    <h1>Vocab</h1>
-    <a href="<%= base %>/words">Voir la liste des mots</a>
-    <a href="<%= base %>/game">Jouer</a>
-</body>
-</html>
+<%- include('partials/header', { title: 'Accueil', nav: 'home' }) %>
+<section class="hero">
+    <p class="eyebrow">Jeu lexical solo</p>
+    <h1>Apprendre le vocabulaire,<br />avec justesse et nuance.</h1>
+    <p class="lede">Devine le mot derrière sa définition, explore les nuances entre mots proches, et approprie-toi un lexique plus riche — définition par définition.</p>
+    <div class="actions">
+        <a class="btn btn-primary" href="<%= base %>/game">Jouer</a>
+        <a class="btn btn-secondary" href="<%= base %>/words">Parcourir les mots</a>
+    </div>
+    <div class="stat-row">
+        <span class="stat"><b><%= stats.words %></b> mots</span>
+        <span class="stat"><b><%= stats.categories %></b> catégories</span>
+        <span class="stat"><b><%= stats.examples %></b> exemples</span>
+        <span class="stat"><b><%= stats.confusions %></b> nuances</span>
+    </div>
+</section>
+<%- include('partials/footer') %>

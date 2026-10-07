@@ -1,7 +1,46 @@
 import { queryMany, queryOne, withTransaction } from './database.js';
 
-export async function getWords() {
-    return queryMany('SELECT id, text FROM word ORDER BY text');
+export async function getWordsWithMeta({ q = '', category = '' } = {}) {
+    if (q) {
+        return queryMany(
+            `SELECT id, text, difficulty, register, short_definition FROM word
+            WHERE text ILIKE $1 OR short_definition ILIKE $1
+            ORDER BY difficulty, text`,
+            [`%${q}%`]
+        );
+    }
+    if (category) {
+        return queryMany(
+            `SELECT w.id, w.text, w.difficulty, w.register, w.short_definition
+            FROM word w
+            JOIN word_category wc ON wc.word_id = w.id
+            JOIN category c ON c.id = wc.category_id
+            WHERE c.name = $1
+            ORDER BY w.difficulty, w.text`,
+            [category]
+        );
+    }
+    return queryMany('SELECT id, text, difficulty, register, short_definition FROM word ORDER BY difficulty, text');
+}
+
+export async function getCategoriesWithCounts() {
+    return queryMany(
+        `SELECT c.id, c.name, count(wc.word_id)::int AS word_count
+        FROM category c
+        LEFT JOIN word_category wc ON wc.category_id = c.id
+        GROUP BY c.id, c.name
+        ORDER BY count(wc.word_id) DESC, c.name ASC`
+    );
+}
+
+export async function getStats() {
+    return queryOne(
+        `SELECT
+            (SELECT count(*) FROM word)::int AS words,
+            (SELECT count(*) FROM category)::int AS categories,
+            (SELECT count(*) FROM example)::int AS examples,
+            (SELECT count(*) FROM confusion)::int AS confusions`
+    );
 }
 
 export async function findWordId(text) {
@@ -142,11 +181,17 @@ export async function linkWordRelations(word) {
     return linked;
 }
 
-export async function getAcquisitionGame() {
-    const word = await queryOne(
-        `SELECT id, text, long_definition, short_definition FROM word
-        ORDER BY random() LIMIT 1;`
-    );
+export async function getAcquisitionGame(wordId = null) {
+    let word = null;
+    if (Number.isInteger(wordId)) {
+        word = await queryOne('SELECT id, text, long_definition, short_definition FROM word WHERE id = $1', [wordId]);
+    }
+    if (!word) {
+        word = await queryOne(
+            `SELECT id, text, long_definition, short_definition FROM word
+            ORDER BY random() LIMIT 1;`
+        );
+    }
     if (!word) throw new Error('Not enough words in database to start a game');
     const words = await queryMany(
         `SELECT id, text FROM word

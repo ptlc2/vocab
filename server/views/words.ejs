@@ -1,18 +1,52 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="<%= base %>/style.css">
-    <title>Tous les mots</title>
-</head>
-<body>
-    <a href="<%= base %>/">Accueil</a>
-    <h1>Tous les mots</h1>
-    <ul>
-    <%_ words.forEach(function(word) { _%>
-        <li><a href="<%= base %>/words/<%= encodeURIComponent(word.text) %>"><%= word.text %></a></li>
-    <%_ }); _%>
-    </ul>
-</body>
-</html>
+<%- include('partials/header', { title: 'Les mots', nav: 'words' }) %>
+<div class="page-head">
+    <%_ if (q) { _%>
+    <h1>Recherche : « <%= q %> »</h1>
+    <p class="page-sub"><%= total %> mot<%= total > 1 ? 's' : '' %> trouvé<%= total > 1 ? 's' : '' %>.</p>
+    <%_ } else if (category) { _%>
+    <h1>Catégorie : <%= category %></h1>
+    <p class="page-sub"><%= total %> mot<%= total > 1 ? 's' : '' %> dans cette catégorie.</p>
+    <%_ } else { _%>
+    <h1>Les mots</h1>
+    <p class="page-sub">Classés par niveau, du courant à l’érudit.</p>
+    <%_ } _%>
+</div>
+<div class="filters">
+    <form class="search-form" method="get" action="<%= base %>/words">
+        <input type="search" name="q" value="<%= q %>" placeholder="Chercher un mot ou une définition…" aria-label="Chercher un mot" />
+        <button type="submit" class="btn btn-secondary">Chercher</button>
+        <%_ if (q || category) { _%>
+        <a class="btn btn-secondary" href="<%= base %>/words">Effacer</a>
+        <%_ } _%>
+    </form>
+    <div class="chips">
+        <a class="chip <%_ if (!category && !q) { _%>active<%_ } _%>" href="<%= base %>/words">Tous</a>
+        <%_ for (const cat of categories) { _%>
+        <a class="chip <%_ if (category === cat.name) { _%>active<%_ } _%>" href="<%= base %>/words?categorie=<%= encodeURIComponent(cat.name) %>"
+            ><%= cat.name %> <span class="count"><%= cat.word_count %></span></a>
+        <%_ } _%>
+    </div>
+</div>
+<%_ for (const group of groups) { _%>
+<section class="level-group" style="--level: <%= group.color %>">
+    <div class="level-head">
+        <span class="level-dot" aria-hidden="true"></span>
+        <h2 class="level-name"><%= group.name %></h2>
+        <span class="level-count"><%= group.words.length %> mot<%= group.words.length > 1 ? 's' : '' %></span>
+        <p class="level-desc"><%= group.description %></p>
+    </div>
+    <div class="word-grid">
+        <%_ for (const word of group.words) { _%>
+        <a class="word-card" href="<%= base %>/words/<%= encodeURIComponent(word.text) %>">
+            <span class="word-text"><%= word.text %></span>
+            <span class="badges"><span class="badge"><%= word.register %></span></span>
+            <span class="word-def"><%= word.short_definition %></span>
+        </a>
+        <%_ } _%>
+    </div>
+</section>
+<%_ } _%>
+<%_ if (groups.length === 0) { _%>
+<p class="page-sub">Aucun mot ne correspond. <a href="<%= base %>/words">Voir tous les mots</a>.</p>
+<%_ } _%>
+<%- include('partials/footer') %>
