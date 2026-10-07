@@ -12,6 +12,7 @@ app.use(Express.urlencoded({ extended: false }));
 app.set('view engine', 'ejs');
 app.set('views', 'views');
 app.locals.base = process.env.BASE_PATH ?? '/vocab';
+app.locals.language = process.env.LANGUAGE ?? 'fr';
 app.locals.description =
     'Apprendre le vocabulaire français par le jeu : définitions, nuances, mots proches et confusions classiques.';
 app.locals.difficulties = Difficulties;
