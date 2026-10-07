@@ -158,14 +158,20 @@ export function renderProgress(root, base, state) {
     root.appendChild(head);
 
     if (c.seen === 0) {
-        root.appendChild(el('p', 'page-sub', `Rien encore — joue quelques rounds et ta collection apparaîtra ici.`));
+        root.appendChild(
+            el(
+                'p',
+                'page-sub',
+                `Rien pour l’instant — l’enregistrement de tes rounds a démarré avec cette mise à jour : joue quelques parties et ta collection apparaîtra ici.`
+            )
+        );
         const play = el('a', 'btn btn-primary', 'Jouer', `${base}/game`);
         root.appendChild(play);
         return;
     }
 
     const groups = [
-        { title: 'À revoir', entries: dueWords(state) },
+        { title: 'À revoir', entries: dueWords(state), testable: true },
         {
             title: 'En cours',
             entries: Object.entries(state.words)
@@ -193,6 +199,9 @@ export function renderProgress(root, base, state) {
                     `niveau ${entry.difficulty} · boîte ${entry.box} · ${entry.correct}✓ ${entry.wrong}✗`
                 )
             );
+            if (group.testable) {
+                item.appendChild(el('a', 'btn btn-secondary progress-test', 'Se tester', `${base}/game?mot=${entry.id}`));
+            }
             list.appendChild(item);
         }
         root.appendChild(list);

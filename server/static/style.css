@@ -929,6 +929,12 @@ a.badge:hover {
     font-size: 0.8rem;
 }
 
+.progress-test {
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    margin-left: auto;
+}
+
 /* ------------------------------------------------------------------ erreurs */
 
 .error-page {
