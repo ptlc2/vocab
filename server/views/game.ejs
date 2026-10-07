@@ -4,15 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="<%= base %>/style.css">
-    <title><%= game.mode %></title>
+    <title>Vocab — jeu</title>
 </head>
 <body>
     <a href="<%= base %>/">Accueil</a>
     <h1><%= game.definition %></h1>
-    <ul>
+    <form class="game" method="post" action="<%= base %>/game/answer">
+        <input type="hidden" name="target" value="<%= game.targetId %>">
+        <ul class="options">
     <%_ for (const option of game.options) { _%>
-        <li><button><%= option.text %></button></li>
+            <li><button type="submit" name="choice" value="<%= option.id %>"><%= option.text %></button></li>
     <%_ } _%>
-    </ul>
+        </ul>
+    </form>
 </body>
 </html>

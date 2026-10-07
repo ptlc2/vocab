@@ -18,7 +18,7 @@ export default [
             'prefer-const': ['error', { destructuring: 'all' }],
             'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             'no-undef': 'error',
-            'no-console': ['warn', { allow: ['warn', 'error'] }],
+            'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
             'no-shadow': ['warn', { builtinGlobals: false }],
             'no-param-reassign': ['warn', { props: false }],
             'prefer-template': 'warn',

@@ -27,3 +27,34 @@ body {
 a {
     color: var(--link-color);
 }
+
+ul.options {
+    list-style: none;
+    padding: 0;
+}
+
+ul.options li {
+    margin: 8px 0;
+}
+
+ul.options button {
+    font: inherit;
+    padding: 8px 16px;
+    cursor: pointer;
+    background-color: var(--header-bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--text-color);
+    border-radius: 4px;
+}
+
+h1.result.correct {
+    color: #4caf50;
+}
+
+h1.result.incorrect {
+    color: #f44336;
+}
+
+p.definition {
+    font-size: 1.2rem;
+}

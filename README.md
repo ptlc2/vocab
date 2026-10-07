@@ -60,3 +60,23 @@ Ces collections sont organisées par **catégories thématiques ou stylistiques*
 ---
 
 **Vocab** se veut à la fois jeu et atelier linguistique : un espace où l’on apprend à manier les mots avec justesse, élégance et discernement.
+
+---
+
+## Développement
+
+Stack : Node (Express 5 + EJS), PostgreSQL 18 (+ `pg_trgm`), génération lexicale par LLM (Mistral ou OpenAI, au choix).
+
+```bash
+# .env à la racine (gitignoré) :
+# MISTRAL_API_KEY=…
+
+docker compose up -d --build
+docker compose exec -T database psql -U user -d vocab < database/sample.sql
+
+docker compose exec server npm run generate -- 20
+```
+
+- `npm run generate -- N` (dans `server/`, ou via `docker compose exec server`) : génère une liste de N mots par LLM, les insère en base (transactionnel, idempotent) avec catégories, exemples, mots proches et confusions ; les partenaires manquants sont générés en cascade (limite : 2 × N).
+- `LLM_PROVIDER` : `mistral` ou `openai` (défaut : mistral si `MISTRAL_API_KEY` est définie, sinon openai).
+- `BASE_PATH` (défaut : `/vocab`) : préfixe des liens générés — mettre vide en local (`BASE_PATH= docker compose up`) si l’app n’est pas derrière un proxy qui retire le préfixe.
