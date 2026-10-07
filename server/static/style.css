@@ -286,6 +286,20 @@ main.container {
     margin-top: 32px;
 }
 
+.mode-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.mode-row .mode-label {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
 .stat {
     display: inline-flex;
     align-items: baseline;

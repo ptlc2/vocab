@@ -7,6 +7,11 @@
         <a class="btn btn-primary" href="<%= base %>/game">Jouer</a>
         <a class="btn btn-secondary" href="<%= base %>/words">Parcourir les mots</a>
     </div>
+    <div class="mode-row">
+        <span class="mode-label">Deux modes :</span>
+        <a class="chip" href="<%= base %>/game?mode=acquisition">Acquisition lexicale</a>
+        <a class="chip" href="<%= base %>/game?mode=distinction">Distinction sémantique</a>
+    </div>
     <div class="stat-row">
         <span class="stat"><b><%= stats.words %></b> mots</span>
         <span class="stat"><b><%= stats.categories %></b> catégories</span>
