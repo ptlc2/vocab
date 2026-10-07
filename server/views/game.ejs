@@ -1,13 +1,23 @@
 <%- include('partials/header', { title: 'Jeu', nav: 'game' }) %>
 <form class="game-card" method="post" action="<%= base %>/game/answer">
-    <p class="game-label">Quel est ce mot ?</p>
+    <p class="game-mode"><span><%= game.mode === 'distinction' ? 'Distinction sémantique' : 'Acquisition lexicale' %></span></p>
+    <p class="game-label"><%= game.mode === 'distinction' ? 'Le mot juste, c’est lequel ?' : 'Quel est ce mot ?' %></p>
     <p class="game-definition"><%= game.definition %></p>
     <input type="hidden" name="target" value="<%= game.targetId %>" />
+    <input type="hidden" name="mode" value="<%= game.mode %>" />
+    <%_ if (game.sentence) { _%>
+    <input type="hidden" name="sentence" value="<%= game.sentence %>" />
+    <%_ } _%>
+    <%_ if (game.nuance) { _%>
+    <input type="hidden" name="nuance" value="<%= game.nuance %>" />
+    <%_ } _%>
     <ul class="options">
         <%_ for (const option of game.options) { _%>
         <li><button class="option-btn" type="submit" name="choice" value="<%= option.id %>"><%= option.text %></button></li>
         <%_ } _%>
     </ul>
-    <p class="game-hint">Une bonne réponse renforce le mot ; une erreur le fera revenir plus tard.</p>
+    <p class="game-hint"><%= game.mode === 'distinction'
+        ? 'Deux mots souvent confondus : le contexte tranche.'
+        : 'Une bonne réponse renforce le mot ; une erreur le fera revenir plus tard.' %></p>
 </form>
 <%- include('partials/footer') %>

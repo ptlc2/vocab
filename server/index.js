@@ -66,7 +66,8 @@ app.get('/words/:word', async (req, res) => {
 // Game route
 app.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.mot, 10);
-    const game = await Vocab.getAcquisitionGame(Number.isInteger(motId) ? motId : null);
+    const mode = req.query.mode === 'distinction' ? 'distinction' : req.query.mode === 'acquisition' ? 'acquisition' : null;
+    const game = await Vocab.getGame({ wordId: Number.isInteger(motId) ? motId : null, mode });
     res.render('game', { game });
 });
 
@@ -79,12 +80,23 @@ app.post('/game/answer', async (req, res) => {
         res.status(400).render('error', { code: 400, message: 'Réponse invalide' });
         return;
     }
+    const mode = body.mode === 'distinction' ? 'distinction' : 'acquisition';
+    const sentence = mode === 'distinction' && typeof body.sentence === 'string' ? body.sentence.slice(0, 500) : null;
+    const nuance = mode === 'distinction' && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
     const [target, choice] = await Promise.all([Vocab.getWordById(targetId), Vocab.getWordById(choiceId)]);
     if (!target || !choice) {
         res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
         return;
     }
-    res.render('game-result', { correct: target.id === choice.id, definition: target.short_definition, target, choice });
+    res.render('game-result', {
+        correct: target.id === choice.id,
+        mode,
+        definition: target.short_definition,
+        sentence,
+        nuance,
+        target,
+        choice,
+    });
 });
 
 // 404 handler

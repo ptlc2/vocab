@@ -27,9 +27,11 @@ export async function getCategoriesWithCounts() {
     return queryMany(
         `SELECT c.id, c.name, count(wc.word_id)::int AS word_count
         FROM category c
-        LEFT JOIN word_category wc ON wc.category_id = c.id
+        JOIN word_category wc ON wc.category_id = c.id
         GROUP BY c.id, c.name
-        ORDER BY count(wc.word_id) DESC, c.name ASC`
+        HAVING count(wc.word_id) >= 2
+        ORDER BY count(wc.word_id) DESC, c.name ASC
+        LIMIT 10`
     );
 }
 
@@ -179,6 +181,80 @@ export async function linkWordRelations(word) {
         if (otherId !== null && (await linkConfusion(wordId, otherId, confusion.nuance))) linked += 1;
     }
     return linked;
+}
+
+export async function getGame({ wordId = null, mode = null } = {}) {
+    let wanted = mode;
+    if (wanted === null) {
+        wanted = Math.random() < 0.5 ? 'acquisition' : 'distinction';
+    }
+    if (wordId !== null) {
+        wanted = 'acquisition';
+    }
+    if (wanted === 'distinction') {
+        try {
+            return await getDistinctionGame();
+        } catch {
+            return getAcquisitionGame(null);
+        }
+    }
+    return getAcquisitionGame(wordId);
+}
+
+export async function getDistinctionGame() {
+    const pair =
+        (await queryOne(
+            `SELECT w1.id AS a_id, w1.text AS a_text, w2.id AS b_id, w2.text AS b_text, c.nuance
+            FROM confusion c
+            JOIN word w1 ON w1.id = c.word1_id
+            JOIN word w2 ON w2.id = c.word2_id
+            ORDER BY random() LIMIT 1`
+        )) ??
+        (await queryOne(
+            `SELECT w1.id AS a_id, w1.text AS a_text, w2.id AS b_id, w2.text AS b_text, NULL AS nuance
+            FROM near_words n
+            JOIN word w1 ON w1.id = n.word1_id
+            JOIN word w2 ON w2.id = n.word2_id
+            ORDER BY random() LIMIT 1`
+        ));
+    if (!pair) throw new Error('Not enough word pairs in database to start a distinction game');
+
+    const flip = Math.random() < 0.5;
+    const target = flip ? { id: pair.a_id, text: pair.a_text } : { id: pair.b_id, text: pair.b_text };
+    const other = flip ? { id: pair.b_id, text: pair.b_text } : { id: pair.a_id, text: pair.a_text };
+
+    const examples = await queryMany('SELECT sentence FROM example WHERE word_id = $1', [target.id]);
+    const sentence = examples.map(example => example.sentence).find(s => containsWord(s, target.text)) ?? null;
+    let definition;
+    if (sentence) {
+        definition = blankOutWord(sentence, target.text);
+    } else {
+        const word = await queryOne('SELECT short_definition FROM word WHERE id = $1', [target.id]);
+        definition = word ? word.short_definition : null;
+    }
+    if (definition === null) throw new Error('No usable prompt for the picked pair');
+
+    return {
+        mode: 'distinction',
+        targetId: target.id,
+        definition,
+        sentence,
+        nuance: pair.nuance ?? null,
+        options: shuffle([target, other]),
+    };
+}
+
+function wordPattern(word) {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(?<![\\p{L}])${escaped}(?![\\p{L}])`, 'iu');
+}
+
+function containsWord(sentence, word) {
+    return wordPattern(word).test(sentence);
+}
+
+function blankOutWord(sentence, word) {
+    return sentence.replace(wordPattern(word), '______');
 }
 
 export async function getAcquisitionGame(wordId = null) {

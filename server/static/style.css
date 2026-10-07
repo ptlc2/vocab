@@ -654,6 +654,24 @@ a.badge:hover {
     text-align: center;
 }
 
+.game-mode {
+    text-align: center;
+    margin: 0 0 12px;
+}
+
+.game-mode span {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
 .game-definition {
     font-family: var(--font-serif);
     font-size: clamp(1.3rem, 4vw, 1.6rem);
@@ -773,6 +791,30 @@ a.badge:hover {
     gap: 12px;
     flex-wrap: wrap;
     margin-top: 28px;
+}
+
+.nuance-card {
+    margin-top: 20px;
+    padding: 14px 18px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-align: left;
+}
+
+.nuance-card .nuance-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0 0 6px;
+}
+
+.nuance-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
 }
 
 /* ------------------------------------------------------------------ erreurs */
