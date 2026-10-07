@@ -27,12 +27,13 @@ function setDefaultLocals(res) {
     }
 }
 
-// Root: redirect to the browser's language if served, else the default language
+// Root: language choice
+const LANGUAGE_NAMES = { fr: 'Français', en: 'English' };
 app.get('/', (req, res) => {
-    const negotiated = (req.acceptsLanguages() ?? [])
-        .map(lang => lang.split('-')[0].toLowerCase())
-        .find(lang => LANGUAGES.includes(lang));
-    res.redirect(302, `${deploymentBase}/${negotiated ?? LANGUAGES[0]}`);
+    res.render('choose', {
+        base: `${deploymentBase}/${LANGUAGES[0]}`,
+        languages: LANGUAGES.map(lang => ({ code: lang, name: LANGUAGE_NAMES[lang] ?? lang, href: `${deploymentBase}/${lang}` })),
+    });
 });
 
 // Legacy paths without the language prefix: redirect to the default language

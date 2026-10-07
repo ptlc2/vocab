@@ -64,14 +64,19 @@ async function findPairs(words) {
     throw lastError;
 }
 
+const LANGUAGE = ['fr', 'en'].includes(process.argv[2]) ? process.argv[2] : 'fr';
+
 try {
-    const words = await queryMany('SELECT id, text, difficulty, short_definition FROM word ORDER BY difficulty, text');
+    const words = await queryMany(
+        'SELECT id, text, difficulty, short_definition FROM word WHERE language = $1 ORDER BY difficulty, text',
+        [LANGUAGE]
+    );
     const chunks = [];
     const shuffled = shuffle([...words]);
     for (let i = 0; i < shuffled.length; i += CHUNK_SIZE) {
         chunks.push(shuffled.slice(i, i + CHUNK_SIZE));
     }
-    console.info(`Passe de nuances : ${words.length} mots en ${chunks.length} lots de ${CHUNK_SIZE}.`);
+    console.info(`Passe de nuances (${LANGUAGE}) : ${words.length} mots en ${chunks.length} lots de ${CHUNK_SIZE}.`);
 
     let created = 0;
     let alreadyThere = 0;
@@ -93,8 +98,8 @@ try {
                 rejected += 1;
                 continue;
             }
-            const id1 = await findWordId(pair.word1);
-            const id2 = await findWordId(pair.word2);
+            const id1 = await findWordId(pair.word1, LANGUAGE);
+            const id2 = await findWordId(pair.word2, LANGUAGE);
             if (id1 === null || id2 === null) {
                 unknown += 1;
                 console.warn(`  ? mot inconnu : « ${id1 === null ? pair.word1 : pair.word2} »`);

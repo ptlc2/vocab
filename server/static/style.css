@@ -1074,6 +1074,59 @@ a.badge:hover {
     visibility: hidden;
 }
 
+/* ------------------------------------------------------------------ choix de langue */
+
+.choose-card {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+}
+
+.choose-brand {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 2.4rem;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: var(--text);
+}
+
+.choose-brand .brand-dot {
+    color: var(--accent);
+}
+
+.choose-languages {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.choose-lang {
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    padding: 16px 40px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.choose-lang:hover {
+    border-color: var(--accent);
+    color: var(--text);
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
 /* ------------------------------------------------------------------ erreurs */
 
 .error-page {
