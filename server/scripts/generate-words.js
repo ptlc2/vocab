@@ -48,7 +48,8 @@ try {
                     if (!seen.has(near) && isSingleWord(near)) queue.push({ text: near, cascade: true });
                 }
                 for (const confusion of word.confusions) {
-                    if (!seen.has(confusion.other) && isSingleWord(confusion.other)) queue.push({ text: confusion.other, cascade: true });
+                    if (!seen.has(confusion.other) && isSingleWord(confusion.other))
+                        queue.push({ text: confusion.other, cascade: true });
                 }
             }
             consecutiveFailures = 0;
