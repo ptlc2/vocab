@@ -12,17 +12,47 @@ export const ConfusionSchema = z.object({
 
 export const WordSchema = z.object({
     text: z.string().min(1),
-    difficulty: z.number().int().min(1).max(5),
-    register: z.enum(['familier', 'courant', 'soutenu', 'litteraire', 'technique']),
+    difficulty: z.preprocess(coerceNumber, z.number().int().min(1).max(5)),
+    register: z.preprocess(normalizeRegister, z.enum(['familier', 'courant', 'soutenu', 'litteraire', 'technique'])),
     short_definition: z.string().min(1),
     long_definition: z.string().min(1),
-    origin: z.string().optional().nullable(),
+    origin: z.preprocess(normalizeOrigin, z.string().optional().nullable()),
     //notes: z.string().optional().nullable(),
     categories: z.array(z.string().min(1)).default([]),
     examples: z.array(z.string().min(1)).min(1),
     near_words: z.array(z.string().min(1)).default([]),
     confusions: z.array(ConfusionSchema).default([]),
 });
+
+function coerceNumber(value) {
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+        return Number(value);
+    }
+    return value;
+}
+
+function normalizeRegister(value) {
+    if (typeof value !== 'string') return value;
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z]/g, '');
+}
+
+function normalizeOrigin(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string') return value.trim() === '' ? null : value.trim();
+    if (typeof value === 'object' && !Array.isArray(value)) {
+        const text = Object.values(value)
+            .filter(part => typeof part === 'string')
+            .join(' ')
+            .trim();
+        return text === '' ? null : text;
+    }
+    return value;
+}
 
 export function extractJsonFromLlmOutput(raw) {
     const candidates = [];

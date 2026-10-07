@@ -8,6 +8,10 @@ const MAX_COUNT = 200;
 const count = Math.max(1, Math.min(MAX_COUNT, Number.parseInt(process.argv[2], 10) || DEFAULT_COUNT));
 const maxWords = count * 2;
 
+function isSingleWord(text) {
+    return /^[a-zà-öø-ÿœæ]+(?:[-'][a-zà-öø-ÿœæ]+)*$/i.test(text);
+}
+
 try {
     console.info(`Génération d'une liste de ${count} mots…`);
     const initial = await generateWordsList(count);
@@ -41,10 +45,10 @@ try {
                 generated.push(word);
                 await linkWordRelations(word);
                 for (const near of word.near_words) {
-                    if (!seen.has(near)) queue.push({ text: near, cascade: true });
+                    if (!seen.has(near) && isSingleWord(near)) queue.push({ text: near, cascade: true });
                 }
                 for (const confusion of word.confusions) {
-                    if (!seen.has(confusion.other)) queue.push({ text: confusion.other, cascade: true });
+                    if (!seen.has(confusion.other) && isSingleWord(confusion.other)) queue.push({ text: confusion.other, cascade: true });
                 }
             }
             consecutiveFailures = 0;
