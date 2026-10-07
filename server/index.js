@@ -66,15 +66,16 @@ app.get('/words/:word', async (req, res) => {
 app.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.mot, 10);
     const maxId = Number.parseInt(req.query.max, 10);
-    const mode = req.query.mode === 'distinction' ? 'distinction' : req.query.mode === 'acquisition' ? 'acquisition' : null;
+    const mode = ['acquisition', 'reverse', 'distinction', 'jumelage'].includes(req.query.mode) ? req.query.mode : null;
+    const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
     const game = await Vocab.getGame({
         wordId: Number.isInteger(motId) ? motId : null,
         mode,
         maxDifficulty: Number.isInteger(maxId) ? Math.max(1, Math.min(5, maxId)) : null,
+        category: category || null,
     });
     res.render('game', { game });
 });
-
 // Progress route
 app.get('/progress', (req, res) => {
     res.render('progress');
@@ -83,13 +84,48 @@ app.get('/progress', (req, res) => {
 // Game answer route
 app.post('/game/answer', async (req, res) => {
     const body = req.body ?? {};
+    const mode = ['distinction', 'jumelage', 'reverse'].includes(body.mode) ? body.mode : 'acquisition';
+
+    if (mode === 'jumelage') {
+        const target1 = Number.parseInt(body.target1, 10);
+        const target2 = Number.parseInt(body.target2, 10);
+        const choice1 = Number.parseInt(body.choice1, 10);
+        const choice2 = Number.parseInt(body.choice2, 10);
+        if (![target1, target2, choice1, choice2].every(Number.isInteger)) {
+            res.status(400).render('error', { code: 400, message: 'Réponse invalide' });
+            return;
+        }
+        const [wordA, wordB, choice1Word, choice2Word] = await Promise.all([
+            Vocab.getWordById(target1),
+            Vocab.getWordById(target2),
+            Vocab.getWordById(choice1),
+            Vocab.getWordById(choice2),
+        ]);
+        if (!wordA || !wordB || !choice1Word || !choice2Word) {
+            res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
+            return;
+        }
+        const correctA = choice1 === target1;
+        const correctB = choice2 === target2;
+        const nuance = typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
+        res.render('game-result', {
+            mode,
+            correct: correctA && correctB,
+            correctA,
+            correctB,
+            wordA,
+            wordB,
+            nuance,
+        });
+        return;
+    }
+
     const targetId = Number.parseInt(body.target, 10);
     const choiceId = Number.parseInt(body.choice, 10);
     if (!Number.isInteger(targetId) || !Number.isInteger(choiceId)) {
         res.status(400).render('error', { code: 400, message: 'Réponse invalide' });
         return;
     }
-    const mode = body.mode === 'distinction' ? 'distinction' : 'acquisition';
     const sentence = mode === 'distinction' && typeof body.sentence === 'string' ? body.sentence.slice(0, 500) : null;
     const nuance = mode === 'distinction' && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
     const [target, choice] = await Promise.all([Vocab.getWordById(targetId), Vocab.getWordById(choiceId)]);

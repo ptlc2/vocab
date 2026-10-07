@@ -4,9 +4,14 @@ const WRONG_RETRY_MS = 10 * 60e3;
 const MASTERED_BOX = 4;
 const MAX_LEVEL = 5;
 const UNLOCK_THRESHOLD = 5;
+const CATEGORY_UNLOCK_WORDS = 2;
 
 export function newState() {
-    return { words: {}, session: { rounds: 0, score: 0, streak: 0, best: 0, unlocked: 1, frontierCorrect: 0 } };
+    return {
+        words: {},
+        session: { rounds: 0, score: 0, streak: 0, best: 0, unlocked: 1, frontierCorrect: 0 },
+        categories: {},
+    };
 }
 
 export function loadState(storage) {
@@ -29,7 +34,7 @@ export function saveState(storage, state) {
 }
 
 export function recordRound(state, round) {
-    const { targetId, text, difficulty, correct, now = Date.now() } = round;
+    const { targetId, text, difficulty, correct, categories = [], now = Date.now() } = round;
     const id = String(targetId);
     const entry = state.words[id] ?? { text, difficulty, box: 0, due: 0, correct: 0, wrong: 0 };
     entry.text = text;
@@ -44,6 +49,13 @@ export function recordRound(state, round) {
         entry.wrong += 1;
     }
     state.words[id] = entry;
+
+    if (correct) {
+        for (const name of categories) {
+            const category = (state.categories[name] ??= { correctIds: {} });
+            category.correctIds[id] = true;
+        }
+    }
 
     const session = state.session;
     session.rounds += 1;
@@ -62,6 +74,21 @@ export function recordRound(state, round) {
         session.streak = 0;
     }
     return state;
+}
+
+export function isCategoryUnlocked(category) {
+    return Object.keys(category.correctIds).length >= CATEGORY_UNLOCK_WORDS;
+}
+
+export function categoryStats(state) {
+    const entries = Object.entries(state.categories).map(([name, category]) => ({
+        name,
+        correctCount: Object.keys(category.correctIds).length,
+        unlocked: Object.keys(category.correctIds).length >= CATEGORY_UNLOCK_WORDS,
+        wordIds: Object.keys(category.correctIds),
+    }));
+    entries.sort((a, b) => b.correctCount - a.correctCount || a.name.localeCompare(b.name));
+    return entries;
 }
 
 export function dueWords(state, now = Date.now()) {
@@ -87,14 +114,41 @@ function el(tag, className, text, href) {
     return node;
 }
 
+function parseCategories(raw) {
+    if (typeof raw !== 'string' || raw === '') return [];
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter(name => typeof name === 'string') : [];
+    } catch {
+        return [];
+    }
+}
+
 export function renderResultCard(card, base, state) {
-    const correct = card.dataset.correct === 'true';
-    recordRound(state, {
-        targetId: card.dataset.targetId,
-        text: card.dataset.targetText,
-        difficulty: Number.parseInt(card.dataset.difficulty, 10),
-        correct,
-    });
+    if (card.dataset.mode === 'jumelage') {
+        recordRound(state, {
+            targetId: card.dataset.aId,
+            text: card.dataset.aText,
+            difficulty: Number.parseInt(card.dataset.aDifficulty, 10),
+            correct: card.dataset.aCorrect === 'true',
+            categories: parseCategories(card.dataset.aCategories),
+        });
+        recordRound(state, {
+            targetId: card.dataset.bId,
+            text: card.dataset.bText,
+            difficulty: Number.parseInt(card.dataset.bDifficulty, 10),
+            correct: card.dataset.bCorrect === 'true',
+            categories: parseCategories(card.dataset.bCategories),
+        });
+    } else {
+        recordRound(state, {
+            targetId: card.dataset.targetId,
+            text: card.dataset.targetText,
+            difficulty: Number.parseInt(card.dataset.difficulty, 10),
+            correct: card.dataset.correct === 'true',
+            categories: parseCategories(card.dataset.categories),
+        });
+    }
     const block = el('div', 'progress-block');
     const session = state.session;
     block.appendChild(
@@ -170,6 +224,44 @@ export function renderProgress(root, base, state) {
         return;
     }
 
+    const categories = categoryStats(state);
+    if (categories.length > 0) {
+        root.appendChild(el('h2', 'progress-group-title', 'Catégories'));
+        const catList = el('div', 'category-list');
+        for (const category of categories) {
+            const item = el('div', `category-card${category.unlocked ? '' : ' locked'}`);
+            item.appendChild(el('p', 'category-name', category.name));
+            if (category.unlocked) {
+                const chips = el('div', 'chips');
+                for (const wordId of category.wordIds) {
+                    const word = state.words[wordId];
+                    if (word) {
+                        chips.appendChild(el('a', 'chip', word.text, `${base}/words/${encodeURIComponent(word.text)}`));
+                    }
+                }
+                item.appendChild(chips);
+                item.appendChild(
+                    el(
+                        'a',
+                        'btn btn-secondary category-play',
+                        'Jouer cette catégorie',
+                        `${base}/game?categorie=${encodeURIComponent(category.name)}`
+                    )
+                );
+            } else {
+                item.appendChild(
+                    el(
+                        'p',
+                        'category-progress',
+                        `${category.correctCount}/${CATEGORY_UNLOCK_WORDS} mot${category.correctCount > 1 ? 's' : ''} réussi${category.correctCount > 1 ? 's' : ''} pour débloquer`
+                    )
+                );
+            }
+            catList.appendChild(item);
+        }
+        root.appendChild(catList);
+    }
+
     const groups = [
         { title: 'À revoir', entries: dueWords(state), testable: true },
         {
@@ -211,7 +303,7 @@ export function renderProgress(root, base, state) {
 if (typeof document !== 'undefined') {
     const base = document.body?.dataset?.base ?? '';
     const state = loadState(typeof localStorage !== 'undefined' ? localStorage : null);
-    const resultCard = document.querySelector('.result-card[data-target-id]');
+    const resultCard = document.querySelector('.result-card[data-mode]');
     const gameCard = document.querySelector('.game-card');
     const progressRoot = document.getElementById('progress-root');
     if (resultCard) {

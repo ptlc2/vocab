@@ -1,10 +1,40 @@
 <%- include('partials/header', { title: 'Jeu', nav: 'game' }) %>
+<%_
+    const MODE_BADGES = { acquisition: 'Acquisition lexicale', reverse: 'Acquisition inversée', distinction: 'Distinction sémantique', jumelage: 'Distinction sémantique' };
+    const MODE_LABELS = { acquisition: 'Quel est ce mot ?', reverse: 'Quelle est sa définition ?', distinction: 'Le mot juste, c’est lequel ?', jumelage: 'Associe chaque mot à sa définition' };
+    const MODE_HINTS = {
+        acquisition: 'Une bonne réponse renforce le mot ; une erreur le fera revenir plus tard.',
+        reverse: 'Quatre définitions — une seule est celle du mot.',
+        distinction: 'Deux mots souvent confondus : le contexte tranche.',
+        jumelage: 'Deux mots proches, deux définitions : à toi de faire le tri.',
+    };
+_%>
 <form class="game-card" method="post" action="<%= base %>/game/answer">
-    <p class="game-mode"><span><%= game.mode === 'distinction' ? 'Distinction sémantique' : 'Acquisition lexicale' %></span></p>
-    <p class="game-label"><%= game.mode === 'distinction' ? 'Le mot juste, c’est lequel ?' : 'Quel est ce mot ?' %></p>
+    <p class="game-mode"><span><%= MODE_BADGES[game.mode] %></span></p>
+    <input type="hidden" name="mode" value="<%= game.mode %>" />
+    <%_ if (game.mode === 'jumelage') { _%>
+    <p class="game-label"><%= MODE_LABELS[game.mode] %></p>
+    <input type="hidden" name="target1" value="<%= game.wordA.id %>" />
+    <input type="hidden" name="target2" value="<%= game.wordB.id %>" />
+    <%_ if (game.nuance) { _%>
+    <input type="hidden" name="nuance" value="<%= game.nuance %>" />
+    <%_ } _%>
+    <%_ for (const word of [game.wordA, game.wordB]) { _%>
+    <p class="pair-word"><%= word.text %></p>
+    <div class="pair-choices">
+        <%_ for (const def of game.definitions) { _%>
+        <label class="pair-choice">
+            <input type="radio" name="choice<%= word === game.wordA ? '1' : '2' %>" value="<%= def.id %>" required />
+            <span><%= def.text %></span>
+        </label>
+        <%_ } _%>
+    </div>
+    <%_ } _%>
+    <button type="submit" class="btn btn-primary pair-submit">Valider</button>
+    <%_ } else { _%>
+    <p class="game-label"><%= MODE_LABELS[game.mode] %></p>
     <p class="game-definition"><%= game.definition %></p>
     <input type="hidden" name="target" value="<%= game.targetId %>" />
-    <input type="hidden" name="mode" value="<%= game.mode %>" />
     <%_ if (game.sentence) { _%>
     <input type="hidden" name="sentence" value="<%= game.sentence %>" />
     <%_ } _%>
@@ -13,11 +43,14 @@
     <%_ } _%>
     <ul class="options">
         <%_ for (const option of game.options) { _%>
-        <li><button class="option-btn" type="submit" name="choice" value="<%= option.id %>"><%= option.text %></button></li>
+        <li>
+            <button class="option-btn<%= game.mode === 'reverse' ? ' option-def' : '' %>" type="submit" name="choice" value="<%= option.id %>">
+                <%= option.text %>
+            </button>
+        </li>
         <%_ } _%>
     </ul>
-    <p class="game-hint"><%= game.mode === 'distinction'
-        ? 'Deux mots souvent confondus : le contexte tranche.'
-        : 'Une bonne réponse renforce le mot ; une erreur le fera revenir plus tard.' %></p>
+    <%_ } _%>
+    <p class="game-hint"><%= MODE_HINTS[game.mode] %></p>
 </form>
 <%- include('partials/footer') %>

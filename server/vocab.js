@@ -183,44 +183,139 @@ export async function linkWordRelations(word) {
     return linked;
 }
 
-export async function getGame({ wordId = null, mode = null, maxDifficulty = null } = {}) {
+const GAME_MODES = ['acquisition', 'reverse', 'distinction', 'jumelage'];
+
+export async function getGame({ wordId = null, mode = null, maxDifficulty = null, category = null } = {}) {
     let wanted = mode;
     if (wanted === null) {
-        wanted = Math.random() < 0.5 ? 'acquisition' : 'distinction';
+        wanted = category
+            ? Math.random() < 0.5
+                ? 'acquisition'
+                : 'reverse'
+            : GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)];
     }
     if (wordId !== null) {
         wanted = 'acquisition';
     }
-    if (wanted === 'distinction') {
+    if (wanted === 'distinction' || wanted === 'jumelage') {
         try {
-            return await getDistinctionGame();
+            return wanted === 'distinction' ? await getDistinctionGame() : await getPairingGame();
         } catch {
-            return getAcquisitionGame(null, maxDifficulty);
+            return getAcquisitionGame(null, { maxDifficulty, category });
         }
     }
-    return getAcquisitionGame(wordId, maxDifficulty);
+    if (wanted === 'reverse') {
+        return getReverseGame({ maxDifficulty, category });
+    }
+    return getAcquisitionGame(wordId, { maxDifficulty, category });
 }
 
-export async function getDistinctionGame() {
+async function drawWord({ wordId = null, maxDifficulty = null, category = null } = {}) {
+    let word = null;
+    if (Number.isInteger(wordId)) {
+        word = await queryOne('SELECT id, text, long_definition, short_definition, difficulty FROM word WHERE id = $1', [
+            wordId,
+        ]);
+    }
+    if (!word && (Number.isInteger(maxDifficulty) || typeof category === 'string')) {
+        word = await queryOne(
+            `SELECT id, text, long_definition, short_definition, difficulty FROM word
+            WHERE ($1::int IS NULL OR difficulty <= $1)
+            AND ($2::text IS NULL OR EXISTS (
+                SELECT 1 FROM word_category wc
+                JOIN category c ON c.id = wc.category_id
+                WHERE wc.word_id = word.id AND c.name = $2
+            ))
+            ORDER BY random() LIMIT 1;`,
+            [Number.isInteger(maxDifficulty) ? maxDifficulty : null, typeof category === 'string' ? category : null]
+        );
+    }
+    if (!word) {
+        word = await queryOne(
+            `SELECT id, text, long_definition, short_definition, difficulty FROM word
+            ORDER BY random() LIMIT 1;`
+        );
+    }
+    return word ?? null;
+}
+
+async function drawDistractorDefinitions(word) {
+    return queryMany(
+        `SELECT id, text, short_definition FROM word
+        WHERE id <> $1
+        ORDER BY long_definition <-> $2
+        LIMIT 3;`,
+        [word.id, word.long_definition]
+    );
+}
+
+async function drawPair() {
     const pair =
         (await queryOne(
-            `SELECT w1.id AS a_id, w1.text AS a_text, w1.difficulty AS a_difficulty,
-                    w2.id AS b_id, w2.text AS b_text, w2.difficulty AS b_difficulty, c.nuance
+            `SELECT w1.id AS a_id, w1.text AS a_text, w1.short_definition AS a_def, w1.difficulty AS a_difficulty,
+                    w2.id AS b_id, w2.text AS b_text, w2.short_definition AS b_def, w2.difficulty AS b_difficulty, c.nuance
             FROM confusion c
             JOIN word w1 ON w1.id = c.word1_id
             JOIN word w2 ON w2.id = c.word2_id
             ORDER BY random() LIMIT 1`
         )) ??
         (await queryOne(
-            `SELECT w1.id AS a_id, w1.text AS a_text, w1.difficulty AS a_difficulty,
-                    w2.id AS b_id, w2.text AS b_text, w2.difficulty AS b_difficulty, NULL AS nuance
+            `SELECT w1.id AS a_id, w1.text AS a_text, w1.short_definition AS a_def, w1.difficulty AS a_difficulty,
+                    w2.id AS b_id, w2.text AS b_text, w2.short_definition AS b_def, w2.difficulty AS b_difficulty, NULL AS nuance
             FROM near_words n
             JOIN word w1 ON w1.id = n.word1_id
             JOIN word w2 ON w2.id = n.word2_id
             ORDER BY random() LIMIT 1`
         ));
-    if (!pair) throw new Error('Not enough word pairs in database to start a distinction game');
+    if (!pair) throw new Error('Not enough word pairs in database to start a game');
+    return pair;
+}
 
+export async function getAcquisitionGame(wordId = null, { maxDifficulty = null, category = null } = {}) {
+    const word = await drawWord({ wordId, maxDifficulty, category });
+    if (!word) throw new Error('Not enough words in database to start a game');
+    const words = await drawDistractorDefinitions(word);
+    return {
+        mode: 'acquisition',
+        targetId: word.id,
+        difficulty: word.difficulty,
+        definition: word.short_definition,
+        options: shuffle([{ id: word.id, text: word.text }, ...words.map(w => ({ id: w.id, text: w.text }))]),
+    };
+}
+
+export async function getReverseGame({ maxDifficulty = null, category = null } = {}) {
+    const word = await drawWord({ maxDifficulty, category });
+    if (!word) throw new Error('Not enough words in database to start a game');
+    const words = await drawDistractorDefinitions(word);
+    return {
+        mode: 'reverse',
+        targetId: word.id,
+        difficulty: word.difficulty,
+        definition: word.text,
+        options: shuffle([
+            { id: word.id, text: word.short_definition },
+            ...words.map(w => ({ id: w.id, text: w.short_definition })),
+        ]),
+    };
+}
+
+export async function getPairingGame() {
+    const pair = await drawPair();
+    return {
+        mode: 'jumelage',
+        wordA: { id: pair.a_id, text: pair.a_text, difficulty: pair.a_difficulty },
+        wordB: { id: pair.b_id, text: pair.b_text, difficulty: pair.b_difficulty },
+        nuance: pair.nuance ?? null,
+        definitions: shuffle([
+            { id: pair.a_id, text: pair.a_def },
+            { id: pair.b_id, text: pair.b_def },
+        ]),
+    };
+}
+
+export async function getDistinctionGame() {
+    const pair = await drawPair();
     const flip = Math.random() < 0.5;
     const target = flip
         ? { id: pair.a_id, text: pair.a_text, difficulty: pair.a_difficulty }
@@ -262,44 +357,6 @@ function containsWord(sentence, word) {
 
 function blankOutWord(sentence, word) {
     return sentence.replace(wordPattern(word), '______');
-}
-
-export async function getAcquisitionGame(wordId = null, maxDifficulty = null) {
-    let word = null;
-    if (Number.isInteger(wordId)) {
-        word = await queryOne('SELECT id, text, long_definition, short_definition, difficulty FROM word WHERE id = $1', [
-            wordId,
-        ]);
-    }
-    if (!word && Number.isInteger(maxDifficulty)) {
-        word = await queryOne(
-            `SELECT id, text, long_definition, short_definition, difficulty FROM word
-            WHERE difficulty <= $1
-            ORDER BY random() LIMIT 1;`,
-            [maxDifficulty]
-        );
-    }
-    if (!word) {
-        word = await queryOne(
-            `SELECT id, text, long_definition, short_definition, difficulty FROM word
-            ORDER BY random() LIMIT 1;`
-        );
-    }
-    if (!word) throw new Error('Not enough words in database to start a game');
-    const words = await queryMany(
-        `SELECT id, text FROM word
-        WHERE id <> $1
-        ORDER BY long_definition <-> $2
-        LIMIT 3;`,
-        [word.id, word.long_definition]
-    );
-    return {
-        mode: 'acquisition',
-        targetId: word.id,
-        difficulty: word.difficulty,
-        definition: word.short_definition,
-        options: shuffle([{ id: word.id, text: word.text }, ...words.map(w => ({ id: w.id, text: w.text }))]),
-    };
 }
 
 function shuffle(array) {
