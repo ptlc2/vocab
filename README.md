@@ -12,10 +12,12 @@ L’objectif n’est pas l’accumulation mécanique de mots, mais leur **approp
 ### 🧠 Acquisition lexicale
 Ce mode constitue le socle du jeu.
 
-Le joueur est confronté à de nouveaux mots, présentés avec leurs définitions, parfois mises en tension par des propositions voisines ou des formulations piégeuses. Selon les variantes, il peut s’agir de :
-- retrouver le mot à partir de sa définition,
-- identifier la définition correcte d’un mot donné,
-- reconnaître l’usage approprié d’un terme dans un contexte précis.
+Le joueur est confronté à de nouveaux mots, présentés avec leurs définitions, parfois mises en tension par des propositions voisines ou des formulations piégeuses. Chaque mode existe en trois formes :
+- **normale** — retrouver le mot à partir de sa définition,
+- **inversée** — identifier la définition correcte d’un mot donné,
+- **avancée (frappe)** — retrouver le mot en le tapant : une faute de frappe passe, un autre mot non.
+
+La distinction sémantique existe aussi en trois formes : reconnaître l’usage approprié d’un terme dans un contexte précis (normale), associer un mot à sa définition spécifique face à son confondable (inversée), et taper le mot juste qu’appelle le contexte (avancée).
 
 Chaque réussite renforce la familiarité avec le mot ; les échecs, eux, déclenchent des rappels ultérieurs afin d’ancrer durablement le sens.
 
@@ -56,11 +58,6 @@ Ces collections sont organisées par **catégories thématiques ou stylistiques*
 - trace visible de la progression,
 - outil de révision ciblée,
 - incitation à explorer des champs lexicaux plus exigeants.
-
----
-
-### ⌨️ Mode frappe (idée)
-Sans choix multiple : la définition est donnée, on tape le mot au clavier, lettre par lettre. La réponse est validée si elle est **semblable à ~99 %** au mot attendu — une faute de frappe passe, un mot faux non.
 
 ---
 

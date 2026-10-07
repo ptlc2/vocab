@@ -66,7 +66,9 @@ app.get('/words/:word', async (req, res) => {
 app.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.mot, 10);
     const maxId = Number.parseInt(req.query.max, 10);
-    const mode = ['acquisition', 'reverse', 'distinction', 'jumelage'].includes(req.query.mode) ? req.query.mode : null;
+    const mode = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage', 'frappe-contexte'].includes(req.query.mode)
+        ? req.query.mode
+        : null;
     const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
     const game = await Vocab.getGame({
         wordId: Number.isInteger(motId) ? motId : null,
@@ -84,7 +86,41 @@ app.get('/progress', (req, res) => {
 // Game answer route
 app.post('/game/answer', async (req, res) => {
     const body = req.body ?? {};
-    const mode = ['distinction', 'jumelage', 'reverse'].includes(body.mode) ? body.mode : 'acquisition';
+    const mode = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage', 'frappe-contexte'].includes(body.mode)
+        ? body.mode
+        : 'acquisition';
+
+    if (mode === 'frappe' || mode === 'frappe-contexte') {
+        const targetId = Number.parseInt(body.target, 10);
+        const guess = typeof body.guess === 'string' ? body.guess.slice(0, 60) : '';
+        if (!Number.isInteger(targetId) || guess.trim() === '') {
+            res.status(400).render('error', { code: 400, message: 'Réponse invalide' });
+            return;
+        }
+        const target = await Vocab.getWordById(targetId);
+        if (!target) {
+            res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
+            return;
+        }
+        const otherId = Number.parseInt(body.other, 10);
+        const other = mode === 'frappe-contexte' && Number.isInteger(otherId) ? await Vocab.getWordById(otherId) : null;
+        const sentence = mode === 'frappe-contexte' && typeof body.sentence === 'string' ? body.sentence.slice(0, 500) : null;
+        const nuance = mode === 'frappe-contexte' && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
+        res.render('game-result', {
+            mode,
+            correct: Vocab.isCloseMatch(guess, target.text),
+            guess,
+            definition: target.short_definition,
+            sentence,
+            nuance,
+            other: other ?? null,
+            sticky: body.sticky === '1',
+            target,
+            choice: null,
+        });
+        return;
+    }
+
     const targetId = Number.parseInt(body.target, 10);
     const choiceId = Number.parseInt(body.choice, 10);
     if (!Number.isInteger(targetId) || !Number.isInteger(choiceId)) {

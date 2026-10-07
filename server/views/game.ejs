@@ -1,19 +1,30 @@
 <%- include('partials/header', { title: 'Jeu', nav: 'game' }) %>
 <%_
-    const MODE_BADGES = { acquisition: 'Acquisition lexicale', reverse: 'Acquisition inversée', distinction: 'Distinction sémantique', jumelage: 'Distinction sémantique' };
+    const MODE_BADGES = {
+        acquisition: 'Acquisition lexicale',
+        reverse: 'Acquisition lexicale',
+        frappe: 'Acquisition lexicale',
+        distinction: 'Distinction sémantique',
+        jumelage: 'Distinction sémantique',
+        'frappe-contexte': 'Distinction sémantique',
+    };
     const MODE_LABELS = {
         acquisition: 'Quel est ce mot ?',
         reverse: 'Quelle est sa définition ?',
+        frappe: 'Tape le mot',
         distinction: 'Le mot juste, c’est lequel ?',
         jumelage: 'Sa définition, c’est laquelle ?',
+        'frappe-contexte': 'Tape le mot juste',
     };
     const MODE_HINTS = {
         acquisition: 'Une bonne réponse renforce le mot ; une erreur le fera revenir plus tard.',
         reverse: 'Quatre définitions — une seule est celle du mot.',
+        frappe: 'Une faute de frappe passe ; un autre mot, non.',
         distinction: 'Deux mots souvent confondus : le contexte tranche.',
         jumelage: 'Deux définitions, deux mots souvent confondus — la nuance tranche.',
+        'frappe-contexte': 'Le contexte dit tout : tape le mot qu’il appelle.',
     };
-_%>
+-%>
 <form class="game-card" method="post" action="<%= base %>/game/answer">
     <p class="game-mode"><span><%= MODE_BADGES[game.mode] %></span></p>
     <p class="game-label"><%= MODE_LABELS[game.mode] %></p>
@@ -29,18 +40,41 @@ _%>
     <%_ if (game.nuance) { _%>
     <input type="hidden" name="nuance" value="<%= game.nuance %>" />
     <%_ } _%>
-    <%_ if (game.mode === 'jumelage' && game.otherId) { _%>
+    <%_ if (game.otherId) { _%>
     <input type="hidden" name="other" value="<%= game.otherId %>" />
     <%_ } _%>
+    <%_ if (game.mode === 'frappe' || game.mode === 'frappe-contexte') { _%>
+    <div class="guess-row">
+        <input
+            class="guess-input"
+            type="text"
+            name="guess"
+            maxlength="60"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="Le mot…"
+            aria-label="Ta réponse"
+            required
+        />
+        <button type="submit" class="btn btn-primary">Valider</button>
+    </div>
+    <%_ } else { _%>
     <ul class="options">
         <%_ for (const option of game.options) { _%>
         <li>
-            <button class="option-btn<%= game.mode === 'reverse' || game.mode === 'jumelage' ? ' option-def' : '' %>" type="submit" name="choice" value="<%= option.id %>">
+            <button
+                class="option-btn<%= game.mode === 'reverse' || game.mode === 'jumelage' ? ' option-def' : '' %>"
+                type="submit"
+                name="choice"
+                value="<%= option.id %>"
+            >
                 <%= option.text %>
             </button>
         </li>
         <%_ } _%>
     </ul>
+    <%_ } _%>
     <p class="game-hint"><%= MODE_HINTS[game.mode] %></p>
 </form>
 <%- include('partials/footer') %>

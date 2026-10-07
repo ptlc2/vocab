@@ -1,4 +1,7 @@
 <%- include('partials/header', { title: 'Résultat', nav: 'game' }) %>
+<%_
+    const isFrappe = mode === 'frappe' || mode === 'frappe-contexte';
+_%>
 <div
     class="result-card"
     data-correct="<%= correct %>"
@@ -6,6 +9,7 @@
     data-target-text="<%= target.text %>"
     data-difficulty="<%= target.difficulty %>"
     data-mode="<%= mode %>"
+    data-sticky="<%= sticky %>"
     data-categories="<%= JSON.stringify(target.categories.map(c => c.name)) %>"
 >
     <%_ if (correct) { _%>
@@ -13,7 +17,11 @@
     <p class="verdict-sub">C’était bien <b><%= target.text %></b>.</p>
     <%_ } else { _%>
     <p class="verdict incorrect">Raté…</p>
+    <%_ if (isFrappe) { _%>
+    <p class="verdict-sub">Tu as tapé « <%= guess %> ».</p>
+    <%_ } else { _%>
     <p class="verdict-sub">Tu as choisi <a href="<%= base %>/words/<%= encodeURIComponent(choice.text) %>"><%= choice.text %></a>.</p>
+    <%_ } _%>
     <%_ } _%>
     <p class="result-word"><a href="<%= base %>/words/<%= encodeURIComponent(target.text) %>"><%= target.text %></a></p>
     <%_ if (mode === 'distinction') { _%>
@@ -37,6 +45,23 @@
         <p class="nuance-text"><%= nuance %></p>
         <%_ } _%>
     </div>
+    <%_ } _%>
+    <%_ } else if (isFrappe) { _%>
+    <p class="result-def"><%= definition %></p>
+    <%_ if (sentence) { _%>
+    <p class="result-example"><%= sentence %></p>
+    <%_ } _%>
+    <%_ if (other && mode === 'frappe-contexte') { _%>
+    <div class="nuance-card">
+        <p class="nuance-title">Ne pas confondre avec <%= other.text %></p>
+        <p><%= other.short_definition %></p>
+        <%_ if (nuance) { _%>
+        <p class="nuance-text"><%= nuance %></p>
+        <%_ } _%>
+    </div>
+    <%_ } _%>
+    <%_ if (target.examples.length > 0) { _%>
+    <p class="result-example"><%= target.examples[0].sentence %></p>
     <%_ } _%>
     <%_ } else { _%>
     <p class="result-def"><%= definition %></p>

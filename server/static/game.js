@@ -149,13 +149,25 @@ export function renderResultCard(card, base, state) {
     card.appendChild(block);
 
     const replay = card.querySelector('.result-actions .btn-primary');
-    const due = dueWords(state);
     if (replay) {
-        if (due.length > 0) {
-            replay.setAttribute('href', `${base}/game?mot=${due[0].id}`);
-            replay.textContent = 'Rejouer un mot à revoir';
-        } else if (session.unlocked < MAX_LEVEL) {
-            replay.setAttribute('href', `${base}/game?max=${session.unlocked}`);
+        const sticky = card.dataset.sticky === 'true';
+        const mode = card.dataset.mode;
+        const recallModes = mode === 'acquisition' || mode === 'reverse' || mode === 'frappe';
+        if (sticky && !recallModes) {
+            // mode distinction choisi explicitement : le lien serveur (?mode=) reste tel quel
+        } else {
+            const due = dueWords(state);
+            if (due.length > 0) {
+                replay.setAttribute(
+                    'href',
+                    sticky ? `${base}/game?mode=${mode}&mot=${due[0].id}` : `${base}/game?mot=${due[0].id}`
+                );
+                replay.textContent = 'Rejouer un mot à revoir';
+            } else if (!sticky && session.unlocked < MAX_LEVEL) {
+                replay.setAttribute('href', `${base}/game?max=${session.unlocked}`);
+            } else if (sticky && session.unlocked < MAX_LEVEL) {
+                replay.setAttribute('href', `${base}/game?mode=${mode}&max=${session.unlocked}`);
+            }
         }
     }
 }

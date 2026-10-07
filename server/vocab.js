@@ -193,7 +193,7 @@ export async function linkWordRelations(word) {
     return linked;
 }
 
-const GAME_MODES = ['acquisition', 'reverse', 'distinction', 'jumelage'];
+const GAME_MODES = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage', 'frappe-contexte'];
 
 export async function getGame({ wordId = null, mode = null, maxDifficulty = null, category = null } = {}) {
     let wanted = mode;
@@ -204,18 +204,23 @@ export async function getGame({ wordId = null, mode = null, maxDifficulty = null
                 : 'reverse'
             : GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)];
     }
-    if (wordId !== null) {
+    if (wordId !== null && wanted !== 'reverse' && wanted !== 'frappe') {
         wanted = 'acquisition';
     }
-    if (wanted === 'distinction' || wanted === 'jumelage') {
+    if (wanted === 'distinction' || wanted === 'jumelage' || wanted === 'frappe-contexte') {
         try {
-            return wanted === 'distinction' ? await getDistinctionGame() : await getPairingGame();
+            if (wanted === 'distinction') return await getDistinctionGame();
+            if (wanted === 'jumelage') return await getPairingGame();
+            return await getFrappeContexteGame();
         } catch {
             return getAcquisitionGame(null, { maxDifficulty, category });
         }
     }
     if (wanted === 'reverse') {
-        return getReverseGame({ maxDifficulty, category });
+        return getReverseGame({ wordId, maxDifficulty, category });
+    }
+    if (wanted === 'frappe') {
+        return getFrappeGame({ wordId, maxDifficulty, category });
     }
     return getAcquisitionGame(wordId, { maxDifficulty, category });
 }
@@ -294,8 +299,8 @@ export async function getAcquisitionGame(wordId = null, { maxDifficulty = null, 
     };
 }
 
-export async function getReverseGame({ maxDifficulty = null, category = null } = {}) {
-    const word = await drawWord({ maxDifficulty, category });
+export async function getReverseGame({ wordId = null, maxDifficulty = null, category = null } = {}) {
+    const word = await drawWord({ wordId, maxDifficulty, category });
     if (!word) throw new Error('Not enough words in database to start a game');
     const words = await drawDistractorDefinitions(word);
     return {
@@ -308,6 +313,68 @@ export async function getReverseGame({ maxDifficulty = null, category = null } =
             ...words.map(w => ({ id: w.id, text: w.short_definition })),
         ]),
     };
+}
+
+export async function getFrappeGame({ wordId = null, maxDifficulty = null, category = null } = {}) {
+    const word = await drawWord({ wordId, maxDifficulty, category });
+    if (!word) throw new Error('Not enough words in database to start a game');
+    return {
+        mode: 'frappe',
+        targetId: word.id,
+        difficulty: word.difficulty,
+        definition: word.short_definition,
+        sentence: null,
+        nuance: null,
+        otherId: null,
+        options: [],
+    };
+}
+
+export async function getFrappeContexteGame() {
+    const pair = await drawPair();
+    const flip = Math.random() < 0.5;
+    const target = { id: flip ? pair.a_id : pair.b_id, text: flip ? pair.a_text : pair.b_text };
+    const otherId = flip ? pair.b_id : pair.a_id;
+    const examples = await queryMany('SELECT sentence FROM example WHERE word_id = $1', [target.id]);
+    const sentence = examples.map(example => example.sentence).find(s => containsWord(s, target.text)) ?? null;
+    return {
+        mode: 'frappe-contexte',
+        targetId: target.id,
+        difficulty: flip ? pair.a_difficulty : pair.b_difficulty,
+        definition: sentence ? blankOutWord(sentence, target.text) : flip ? pair.a_def : pair.b_def,
+        sentence,
+        nuance: pair.nuance ?? null,
+        otherId,
+        options: [],
+    };
+}
+
+function normalizeForCompare(text) {
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+}
+
+function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+        const current = [i];
+        for (let j = 1; j <= b.length; j++) {
+            current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+        previous = current;
+    }
+    return previous[b.length];
+}
+
+export function isCloseMatch(guess, answer) {
+    return levenshtein(normalizeForCompare(guess), normalizeForCompare(answer)) <= 1;
 }
 
 export async function getPairingGame() {
