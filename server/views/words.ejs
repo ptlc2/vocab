@@ -1,4 +1,11 @@
 <%- include('partials/header', { title: 'Les mots', nav: 'words' }) %>
+<%_ const pageHref = (p) => {
+    const params = new URLSearchParams();
+    params.set('page', p);
+    if (q) params.set('q', q);
+    if (category) params.set('categorie', category);
+    return `${base}/words?${params.toString()}`;
+}; _%>
 <div class="page-head">
     <%_ if (q) { _%>
     <h1>Recherche : « <%= q %> »</h1>
@@ -9,6 +16,9 @@
     <%_ } else { _%>
     <h1>Les mots</h1>
     <p class="page-sub">Classés par niveau, du courant à l’érudit.</p>
+    <%_ } _%>
+    <%_ if (pageCount > 1) { _%>
+    <p class="page-sub">Page <%= page %> sur <%= pageCount %>.</p>
     <%_ } _%>
 </div>
 <div class="filters">
@@ -48,5 +58,30 @@
 <%_ } _%>
 <%_ if (groups.length === 0) { _%>
 <p class="page-sub">Aucun mot ne correspond. <a href="<%= base %>/words">Voir tous les mots</a>.</p>
+<%_ } _%>
+<%_ if (pageCount > 1) { _%>
+<nav class="pagination" aria-label="Pages de mots">
+    <%_ if (page > 1) { _%>
+    <a class="page-arrow" href="<%= pageHref(page - 1) %>">Précédent</a>
+    <%_ } else { _%>
+    <span class="page-arrow" aria-hidden="true"></span>
+    <%_ } _%>
+    <%_ if (pageCount <= 8) { _%>
+    <%_ for (let p = 1; p <= pageCount; p++) { _%>
+    <%_ if (p === page) { _%>
+    <span class="page-num active" aria-current="page"><%= p %></span>
+    <%_ } else { _%>
+    <a class="page-num" href="<%= pageHref(p) %>"><%= p %></a>
+    <%_ } _%>
+    <%_ } _%>
+    <%_ } else { _%>
+    <span class="page-num active" aria-current="page"><%= page %></span>
+    <%_ } _%>
+    <%_ if (page < pageCount) { _%>
+    <a class="page-arrow" href="<%= pageHref(page + 1) %>">Suivant</a>
+    <%_ } else { _%>
+    <span class="page-arrow" aria-hidden="true"></span>
+    <%_ } _%>
+</nav>
 <%_ } _%>
 <%- include('partials/footer') %>

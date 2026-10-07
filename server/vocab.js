@@ -1,26 +1,52 @@
 import { queryMany, queryOne, withTransaction } from './database.js';
 
-export async function getWordsWithMeta({ q = '', category = '' } = {}) {
+const WORDS_PAGE_SIZE = 100;
+
+export async function getWordsWithMeta({ q = '', category = '', page = 1, pageSize = WORDS_PAGE_SIZE } = {}) {
+    const limit = Math.max(1, Math.min(200, pageSize));
+    let total;
+    let wordsQuery;
+    let wordsValues;
     if (q) {
-        return queryMany(
-            `SELECT id, text, difficulty, register, short_definition FROM word
+        const like = `%${q}%`;
+        ({ count: total } = await queryOne(
+            `SELECT count(*)::int AS count FROM word
+            WHERE text ILIKE $1 OR short_definition ILIKE $1`,
+            [like]
+        ));
+        wordsQuery = `SELECT id, text, difficulty, register, short_definition FROM word
             WHERE text ILIKE $1 OR short_definition ILIKE $1
-            ORDER BY difficulty, text`,
-            [`%${q}%`]
-        );
-    }
-    if (category) {
-        return queryMany(
-            `SELECT w.id, w.text, w.difficulty, w.register, w.short_definition
+            ORDER BY difficulty, text
+            LIMIT $2 OFFSET $3`;
+        wordsValues = [like, limit];
+    } else if (category) {
+        ({ count: total } = await queryOne(
+            `SELECT count(*)::int AS count
+            FROM word w
+            JOIN word_category wc ON wc.word_id = w.id
+            JOIN category c ON c.id = wc.category_id
+            WHERE c.name = $1`,
+            [category]
+        ));
+        wordsQuery = `SELECT w.id, w.text, w.difficulty, w.register, w.short_definition
             FROM word w
             JOIN word_category wc ON wc.word_id = w.id
             JOIN category c ON c.id = wc.category_id
             WHERE c.name = $1
-            ORDER BY w.difficulty, w.text`,
-            [category]
-        );
+            ORDER BY w.difficulty, w.text
+            LIMIT $2 OFFSET $3`;
+        wordsValues = [category, limit];
+    } else {
+        ({ count: total } = await queryOne('SELECT count(*)::int AS count FROM word'));
+        wordsQuery = `SELECT id, text, difficulty, register, short_definition FROM word
+            ORDER BY difficulty, text
+            LIMIT $1 OFFSET $2`;
+        wordsValues = [limit];
     }
-    return queryMany('SELECT id, text, difficulty, register, short_definition FROM word ORDER BY difficulty, text');
+    const pageCount = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(Math.max(1, page), pageCount);
+    const words = await queryMany(wordsQuery, [...wordsValues, (safePage - 1) * limit]);
+    return { words, total, page: safePage, pageCount };
 }
 
 export async function getCategoriesWithCounts() {

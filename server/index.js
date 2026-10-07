@@ -45,12 +45,17 @@ app.get('/', async (req, res) => {
 app.get('/words', async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 60) : '';
     const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
-    const words = await Vocab.getWordsWithMeta({ q, category });
+    const pageParam = Number.parseInt(req.query.page, 10);
+    const { words, total, page, pageCount } = await Vocab.getWordsWithMeta({
+        q,
+        category,
+        page: Number.isInteger(pageParam) && pageParam > 0 ? Math.min(pageParam, 1000) : 1,
+    });
     const categories = await Vocab.getCategoriesWithCounts();
     const groups = [1, 2, 3, 4, 5]
         .map(level => ({ ...Difficulties[level], words: words.filter(word => word.difficulty === level) }))
         .filter(group => group.words.length > 0);
-    res.render('words', { words, groups, categories, q, category, total: words.length });
+    res.render('words', { words, groups, categories, q, category, total, page, pageCount });
 });
 
 // Word route

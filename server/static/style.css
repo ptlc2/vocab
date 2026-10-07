@@ -1026,6 +1026,54 @@ a.badge:hover {
     font-size: 0.85rem;
 }
 
+/* ------------------------------------------------------------------ pagination */
+
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 32px 0 8px;
+}
+
+.pagination .page-num,
+.pagination .page-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    padding: 5px 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 0.9rem;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.pagination a.page-num:hover,
+.pagination a.page-arrow:hover {
+    color: var(--text);
+    border-color: var(--text);
+    text-decoration: none;
+}
+
+.pagination .page-num.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+}
+
+.pagination .page-arrow[aria-hidden] {
+    border-color: transparent;
+    background: transparent;
+    visibility: hidden;
+}
+
 /* ------------------------------------------------------------------ erreurs */
 
 .error-page {
