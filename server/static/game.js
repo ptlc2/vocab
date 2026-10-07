@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'vocab:progress:v1';
+const LEGACY_STORAGE_KEY = 'vocab:progress:v1';
 const CORRECT_INTERVALS_MS = [8 * 3600e3, 24 * 3600e3, 3 * 86400e3, 7 * 86400e3, 30 * 86400e3];
 const WRONG_RETRY_MS = 10 * 60e3;
 const MASTERED_BOX = 4;
@@ -14,9 +14,22 @@ export function newState() {
     };
 }
 
-export function loadState(storage) {
+export function storageKey(language = 'fr') {
+    return `vocab:progress:v1:${language}`;
+}
+
+function migrateLegacyState(storage, language) {
+    const legacy = storage?.getItem(LEGACY_STORAGE_KEY);
+    if (legacy !== null && storage?.getItem(storageKey(language)) === null) {
+        storage.setItem(storageKey(language), legacy);
+        storage.removeItem(LEGACY_STORAGE_KEY);
+    }
+}
+
+export function loadState(storage, language = 'fr') {
     try {
-        const raw = storage?.getItem(STORAGE_KEY);
+        migrateLegacyState(storage, language);
+        const raw = storage?.getItem(storageKey(language));
         if (!raw) return newState();
         const parsed = JSON.parse(raw);
         if (typeof parsed !== 'object' || parsed === null || typeof parsed.words !== 'object' || !parsed.session) {
@@ -43,8 +56,8 @@ function isValidEntry(id, entry) {
     );
 }
 
-export function saveState(storage, state) {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(state));
+export function saveState(storage, state, language = 'fr') {
+    storage?.setItem(storageKey(language), JSON.stringify(state));
 }
 
 export function recordRound(state, round) {
@@ -198,7 +211,7 @@ export function renderGameCard(card, base, state) {
     card.appendChild(line);
 }
 
-export function renderProgress(root, base, state) {
+export function renderProgress(root, base, state, language = 'fr') {
     root.textContent = '';
     const session = state.session;
     const c = counts(state);
@@ -216,8 +229,8 @@ export function renderProgress(root, base, state) {
     const reset = el('button', 'btn btn-secondary', 'Effacer ma progression');
     reset.addEventListener('click', () => {
         if (window.confirm('Effacer toute ta progression dans ce navigateur ?')) {
-            localStorage.removeItem(STORAGE_KEY);
-            renderProgress(root, base, loadState(localStorage));
+            localStorage.removeItem(storageKey(language));
+            renderProgress(root, base, loadState(localStorage, language), language);
         }
     });
     head.appendChild(reset);
@@ -314,14 +327,16 @@ export function renderProgress(root, base, state) {
 
 if (typeof document !== 'undefined') {
     const base = document.body?.dataset?.base ?? '';
-    const state = loadState(typeof localStorage !== 'undefined' ? localStorage : null);
+    const language = document.body?.dataset?.language || 'fr';
+    const storage = typeof localStorage !== 'undefined' ? localStorage : null;
+    const state = loadState(storage, language);
     const resultCard = document.querySelector('.result-card[data-mode]');
     const gameCard = document.querySelector('.game-card');
     const progressRoot = document.getElementById('progress-root');
     if (resultCard) {
         renderResultCard(resultCard, base, state);
-        saveState(typeof localStorage !== 'undefined' ? localStorage : null, state);
+        saveState(storage, state, language);
     }
     if (gameCard) renderGameCard(gameCard, base, state);
-    if (progressRoot) renderProgress(progressRoot, base, state);
+    if (progressRoot) renderProgress(progressRoot, base, state, language);
 }
