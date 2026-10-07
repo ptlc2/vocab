@@ -1,6 +1,8 @@
 import { complete } from './llm/index.js';
 import { z } from 'zod';
 
+const MAX_VALIDATION_ATTEMPTS = 3;
+
 export const WordsListSchema = z.array(z.string().min(1)).min(1);
 
 export const ConfusionSchema = z.object({
@@ -23,18 +25,53 @@ export const WordSchema = z.object({
 });
 
 export function extractJsonFromLlmOutput(raw) {
-    // If the model put the answer in a ```json ... ``` block
+    const candidates = [];
     const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const jsonText = fenced ? fenced[1] : raw;
-
-    try {
-        return JSON.parse(jsonText);
-    } catch {
-        throw new Error(
-            `Impossible de parser la réponse du LLM comme du JSON.
-      Réponse brute (début) : ${jsonText.slice(0, 500)}`
-        );
+    if (fenced) candidates.push(fenced[1]);
+    candidates.push(raw);
+    candidates.push(...topLevelJsonCandidates(raw));
+    for (const text of candidates) {
+        try {
+            return JSON.parse(text.trim());
+        } catch {
+            continue;
+        }
     }
+    throw new Error(
+        `Impossible de parser la réponse du LLM comme du JSON.
+      Réponse brute (début) : ${raw.slice(0, 500)}`
+    );
+}
+
+function topLevelJsonCandidates(text) {
+    const candidates = [];
+    let start = -1;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inString) {
+            if (escaped) escaped = false;
+            else if (ch === '\\') escaped = true;
+            else if (ch === '"') inString = false;
+            continue;
+        }
+        if (ch === '"') {
+            inString = true;
+        } else if (ch === '{' || ch === '[') {
+            if (depth === 0) start = i;
+            depth++;
+        } else if (ch === '}' || ch === ']') {
+            if (depth > 0) {
+                depth--;
+                if (depth === 0 && start >= 0) {
+                    candidates.push(text.slice(start, i + 1));
+                }
+            }
+        }
+    }
+    return candidates.reverse();
 }
 
 export async function generateWordsList(count = 10) {
@@ -54,37 +91,69 @@ Contraintes de sortie :
 
 Réponds uniquement avec ce tableau JSON.
 `.trim();
-    const raw = await complete(prompt);
-    const json = extractJsonFromLlmOutput(raw);
-    const wordsList = WordsListSchema.parse(json);
-    return wordsList;
+    let lastError;
+    for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS; attempt++) {
+        const raw = await complete(prompt);
+        try {
+            return WordsListSchema.parse(extractJsonFromLlmOutput(raw));
+        } catch (err) {
+            lastError = err;
+            console.warn(`Liste de mots invalide (tentative ${attempt}/${MAX_VALIDATION_ATTEMPTS}) : ${err?.message ?? err}`);
+        }
+    }
+    throw lastError;
 }
 
 export async function generateNewWord(wordText) {
-    const wordJsonSchema = z.toJSONSchema(WordSchema);
     const prompt = `
-Tu es un lexicographe francophone qui prépare une base de données pour un jeu vidéo d’apprentissage du vocabulaire.
+Tu es un lexicographe francophone qui prépare une base de données pour un jeu vidéo d'apprentissage du vocabulaire.
 
-Pour le mot donné, tu dois produire UN SEUL objet JSON STRICT avec les clés suivantes :
-${JSON.stringify(wordJsonSchema, null, 2)}
+Pour le mot donné, tu dois produire UN SEUL objet JSON STRICT (l'objet lui-même, PAS un schéma JSON), avec exactement ces clés :
+- "text" : le mot lui-même
+- "difficulty" : entier de 1 (courant) à 5 (érudit)
+- "register" : exactement l'une de "familier", "courant", "soutenu", "litteraire", "technique"
+- "short_definition" : définition en une phrase courte
+- "long_definition" : définition développée en deux ou trois phrases
+- "origin" : origine étymologique (latin, grec, autre langue, etc.) ou null si inconnue
+- "categories" : tableau de thèmes ou domaines d'usage (exemples : "culinaire", "marine", "informatique", "littérature", "temps", "émotions", "caractère", "nature", "philosophie", "travail")
+- "examples" : tableau de 2 ou 3 phrases d'exemple montrant l'usage du mot (au moins UNE obligatoire)
+- "near_words" : tableau de mots proches (synonymes imparfaits, mêmes sphères d'usage), 0 à 4
+- "confusions" : tableau de 0 à 2 objets {"other" : mot souvent confondu avec, "nuance" : la différence en une ou deux phrases courtes}
 
-Contraintes importantes :
+Exemple de réponse attendue (pour le mot « volubile ») :
+{
+  "text": "volubile",
+  "difficulty": 4,
+  "register": "soutenu",
+  "short_definition": "Qui parle avec aisance et rapidité.",
+  "long_definition": "Se dit d'une personne dont la parole s'écoule avec aisance et vivacité, parfois au point d'être difficile à interrompre.",
+  "origin": "latin (volubilis)",
+  "categories": ["parole", "caractère"],
+  "examples": ["Elle s'exprimait d'un ton volubile, presque intarissable."],
+  "near_words": ["bavard", "prolixe"],
+  "confusions": [
+    {"other": "prolixe", "nuance": "Volubile insiste sur la fluidité de la parole, prolixe sur son excès et sa longueur."}
+  ]
+}
+
+Contraintes :
 - La langue de travail est le français.
-- "difficulty" DOIT être un entier entre 1 et 5.
-- "register" DOIT être exactement l'une de ces valeurs : "familier", "courant", "soutenu", "litteraire", "technique".
-- "origin" est une origine étymologique du mot (latin, grec, autre langue, etc) ou null si inconnue.
-- les catégories sont des thèmes ou domaines d’usage du mot (exemples : "culinaire", "marine", "informatique", "littérature", "temps", "émotions", "caractère", "nature", "philosophie", "travail", etc)
-- 2 ou 3 exemples sont suffisants.
-- entre 0 et 2 confusions (mot souvent confondu avec) sont suffisantes, "nuance" doit tenir en une ou deux phrases courtes et expliquer clairement la différence de sens ou de registre.
-- Il doit y avoir au moins UNE phrase dans "examples".
-- Ne renvoie STRICTEMENT QUE l'objet JSON, sans texte avant ni après, sans commentaires.
-
+- Réponds UNIQUEMENT avec l'objet JSON pour le mot demandé, sans texte avant ni après, sans bloc de code, sans schéma JSON.
 
 Mot à traiter : "${wordText}"
 `.trim();
 
-    const raw = await complete(prompt);
-    const json = extractJsonFromLlmOutput(raw);
-    const word = WordSchema.parse(json);
-    return word;
+    let lastError;
+    for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS; attempt++) {
+        const raw = await complete(prompt);
+        try {
+            return WordSchema.parse(extractJsonFromLlmOutput(raw));
+        } catch (err) {
+            lastError = err;
+            console.warn(
+                `Réponse invalide pour « ${wordText} » (tentative ${attempt}/${MAX_VALIDATION_ATTEMPTS}) : ${err?.message ?? err}`
+            );
+        }
+    }
+    throw lastError;
 }
