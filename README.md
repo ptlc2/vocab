@@ -65,7 +65,7 @@ Ces collections sont organisées par **catégories thématiques ou stylistiques*
 
 ## Développement
 
-Stack : Node (Express 5 + EJS), PostgreSQL 18 (+ `pg_trgm`), génération lexicale par LLM (Mistral ou OpenAI, au choix).
+Stack : Node (Express 5 + EJS), PostgreSQL 18 (+ `pg_trgm`), génération lexicale par LLM — Mistral, OpenAI ou Fireworks au choix.
 
 ```bash
 # .env à la racine (gitignoré) :
@@ -78,5 +78,5 @@ docker compose exec server npm run generate -- 20
 ```
 
 - `npm run generate -- N` (dans `server/`, ou via `docker compose exec server`) : génère une liste de N mots par LLM, les insère en base (transactionnel, idempotent) avec catégories, exemples, mots proches et confusions ; les partenaires manquants sont générés en cascade (limite : 2 × N).
-- `LLM_PROVIDER` : `mistral` ou `openai` (défaut : mistral si `MISTRAL_API_KEY` est définie, sinon openai).
+- `LLM_PROVIDER` : `mistral`, `openai` ou `fireworks` (défaut : mistral si `MISTRAL_API_KEY` est définie, sinon openai). Le modèle est ajustable via `MISTRAL_MODEL` / `FIREWORKS_MODEL`.
 - `BASE_PATH` (défaut : `/vocab`) : préfixe des liens générés — mettre vide en local (`BASE_PATH= docker compose up`) si l’app n’est pas derrière un proxy qui retire le préfixe.
