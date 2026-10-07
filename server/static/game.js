@@ -23,10 +23,24 @@ export function loadState(storage) {
             return newState();
         }
         const base = newState();
-        return { ...base, ...parsed, session: { ...base.session, ...parsed.session } };
+        const state = { ...base, ...parsed, session: { ...base.session, ...parsed.session } };
+        state.words = Object.fromEntries(Object.entries(parsed.words ?? {}).filter(([id, entry]) => isValidEntry(id, entry)));
+        state.categories = typeof parsed.categories === 'object' && parsed.categories !== null ? parsed.categories : {};
+        return state;
     } catch {
         return newState();
     }
+}
+
+function isValidEntry(id, entry) {
+    return (
+        id !== 'undefined' &&
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof entry.text === 'string' &&
+        entry.text !== '' &&
+        Number.isInteger(entry.difficulty)
+    );
 }
 
 export function saveState(storage, state) {
@@ -35,6 +49,15 @@ export function saveState(storage, state) {
 
 export function recordRound(state, round) {
     const { targetId, text, difficulty, correct, categories = [], now = Date.now() } = round;
+    if (
+        targetId === undefined ||
+        targetId === null ||
+        String(targetId) === 'undefined' ||
+        !text ||
+        !Number.isInteger(difficulty)
+    ) {
+        return state;
+    }
     const id = String(targetId);
     const entry = state.words[id] ?? { text, difficulty, box: 0, due: 0, correct: 0, wrong: 0 };
     entry.text = text;

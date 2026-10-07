@@ -1,6 +1,8 @@
 CREATE TABLE word (
     id SERIAL PRIMARY KEY,
-    text TEXT NOT NULL UNIQUE,
+    text TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'fr',
+    CONSTRAINT word_language_text_key UNIQUE (language, text),
 
     difficulty SMALLINT NOT NULL CHECK (difficulty BETWEEN 1 AND 5),
 

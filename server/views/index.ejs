@@ -8,9 +8,18 @@
         <a class="btn btn-secondary" href="<%= base %>/words">Parcourir les mots</a>
     </div>
     <div class="mode-row">
-        <span class="mode-label">Deux modes :</span>
+        <span class="mode-label">Deux familles :</span>
         <a class="chip" href="<%= base %>/game?mode=acquisition">Acquisition lexicale</a>
         <a class="chip" href="<%= base %>/game?mode=distinction">Distinction sémantique</a>
+    </div>
+    <div class="mode-row forms-row">
+        <span class="mode-label">Six formes :</span>
+        <a class="chip" href="<%= base %>/game?mode=acquisition">Définition → mot</a>
+        <a class="chip" href="<%= base %>/game?mode=reverse">Mot → définition</a>
+        <a class="chip" href="<%= base %>/game?mode=frappe">Écrire le mot</a>
+        <a class="chip" href="<%= base %>/game?mode=distinction">Le mot juste dans la phrase</a>
+        <a class="chip" href="<%= base %>/game?mode=jumelage">Mot contre son confondu</a>
+        <a class="chip" href="<%= base %>/game?mode=frappe-contexte">Écrire le mot juste (costaud)</a>
     </div>
     <div class="stat-row">
         <span class="stat"><b><%= stats.words %></b> mots</span>

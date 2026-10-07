@@ -51,6 +51,9 @@ _%>
     <%_ if (sentence) { _%>
     <p class="result-example"><%= sentence %></p>
     <%_ } _%>
+    <%_ if (target.examples.length > 0) { _%>
+    <p class="result-example"><%= example.sentence %></p>
+    <%_ } _%>
     <%_ if (other && mode === 'frappe-contexte') { _%>
     <div class="nuance-card">
         <p class="nuance-title">Ne pas confondre avec <%= other.text %></p>
@@ -60,14 +63,11 @@ _%>
         <%_ } _%>
     </div>
     <%_ } _%>
-    <%_ if (target.examples.length > 0) { _%>
-    <p class="result-example"><%= target.examples[0].sentence %></p>
-    <%_ } _%>
     <%_ } else { _%>
     <p class="result-def"><%= definition %></p>
     <p class="result-long"><%= target.long_definition %></p>
-    <%_ if (target.examples.length > 0) { _%>
-    <p class="result-example"><%= target.examples[0].sentence %></p>
+    <%_ if (example) { _%>
+    <p class="result-example"><%= example.sentence %></p>
     <%_ } _%>
     <%_ } _%>
     <div class="result-actions">

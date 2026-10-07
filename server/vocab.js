@@ -193,7 +193,7 @@ export async function linkWordRelations(word) {
     return linked;
 }
 
-const GAME_MODES = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage', 'frappe-contexte'];
+const GAME_MODES = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage'];
 
 export async function getGame({ wordId = null, mode = null, maxDifficulty = null, category = null } = {}) {
     let wanted = mode;
@@ -336,12 +336,12 @@ export async function getFrappeContexteGame() {
     const target = { id: flip ? pair.a_id : pair.b_id, text: flip ? pair.a_text : pair.b_text };
     const otherId = flip ? pair.b_id : pair.a_id;
     const examples = await queryMany('SELECT sentence FROM example WHERE word_id = $1', [target.id]);
-    const sentence = examples.map(example => example.sentence).find(s => containsWord(s, target.text)) ?? null;
+    const sentence = pickRandomExample(examples, target.text);
     return {
         mode: 'frappe-contexte',
         targetId: target.id,
         difficulty: flip ? pair.a_difficulty : pair.b_difficulty,
-        definition: sentence ? blankOutWord(sentence, target.text) : flip ? pair.a_def : pair.b_def,
+        definition: sentence ? blankOutWord(sentence, target.text, true) : flip ? pair.a_def : pair.b_def,
         sentence,
         nuance: pair.nuance ?? null,
         otherId,
@@ -407,7 +407,7 @@ export async function getDistinctionGame() {
         : { id: pair.a_id, text: pair.a_text, difficulty: pair.a_difficulty };
 
     const examples = await queryMany('SELECT sentence FROM example WHERE word_id = $1', [target.id]);
-    const sentence = examples.map(example => example.sentence).find(s => containsWord(s, target.text)) ?? null;
+    const sentence = pickRandomExample(examples, target.text);
     let definition;
     if (sentence) {
         definition = blankOutWord(sentence, target.text);
@@ -437,8 +437,15 @@ function containsWord(sentence, word) {
     return wordPattern(word).test(sentence);
 }
 
-function blankOutWord(sentence, word) {
-    return sentence.replace(wordPattern(word), '______');
+function blankOutWord(sentence, word, withHint = false) {
+    const blank = withHint ? word.charAt(0) + '_'.repeat(Math.max(0, word.length - 1)) : '______';
+    return sentence.replace(wordPattern(word), blank);
+}
+
+function pickRandomExample(examples, word) {
+    const matching = examples.map(example => example.sentence).filter(sentence => containsWord(sentence, word));
+    if (matching.length === 0) return null;
+    return matching[Math.floor(Math.random() * matching.length)];
 }
 
 function shuffle(array) {

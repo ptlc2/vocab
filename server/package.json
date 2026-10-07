@@ -12,7 +12,8 @@
         "lint:fix": "eslint . --fix",
         "generate": "node scripts/generate-words.js",
         "confusions": "node scripts/generate-confusions.js",
-        "fix-defs": "node scripts/fix-definitions.js"
+        "fix-defs": "node scripts/fix-definitions.js",
+        "merge-cats": "node scripts/merge-categories.js"
     },
     "author": "Ambi",
     "license": "ISC",
