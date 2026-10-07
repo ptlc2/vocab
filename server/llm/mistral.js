@@ -3,7 +3,7 @@ import { callWithRateLimit } from './retry.js';
 
 const apiKey = process.env.MISTRAL_API_KEY;
 const client = apiKey ? new Mistral({ apiKey }) : null;
-const model = process.env.MISTRAL_MODEL || 'mistral-medium-latest';
+const model = process.env.MISTRAL_MODEL || 'ministral-14b-latest';
 
 export async function complete(input) {
     if (!client) {

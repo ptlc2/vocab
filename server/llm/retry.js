@@ -1,4 +1,4 @@
-const MIN_INTERVAL_MS = 1200;
+const MIN_INTERVAL_MS = 2500;
 const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 16000];
 
 let lastCallTime = 0;
