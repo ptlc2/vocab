@@ -117,7 +117,7 @@ try {
     }
 
     console.info(
-        `Terminé : ${created} nuances créées, ${alreadyThere} déjà présentes ou hors règle ±1, ${unknown} mots inconnus, ${failedChunks} lots échoués.`
+        `Terminé : ${created} nuances créées, ${alreadyThere} déjà présentes ou hors règle ±1, ${rejected} paires identiques rejetées, ${unknown} mots inconnus, ${failedChunks} lots échoués.`
     );
     if (failedChunks > 0) process.exitCode = 1;
 } catch (err) {
