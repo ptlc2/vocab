@@ -51,7 +51,29 @@ Le jeu s’organise autour d’une gradation lexicale, où chaque palier introdu
 
 La progression s’effectue naturellement, en fonction des réussites du joueur.
 
+### Paliers et tirage
+
+La progression (locale au navigateur, localStorage) débloque les paliers : cinq bonnes réponses
+sur des mots du niveau exact du palier courant ouvrent le palier suivant. Le lien *Rejouer*
+porte alors le palier (`?max=N`) : le tirage reste sous le plafond débloqué et donne la moitié
+de ses chances au niveau-frontière, pour que chaque palier se débloque à un rythme comparable.
+Les modes de distinction sémantique respectent le plafond eux aussi. Une navigation directe
+vers `/game` tire sur toute la base, librement.
+
 ---
+
+## Équilibrage de la base
+
+Les niveaux 4 et 5 se remplissent plus lentement que le reste (le LLM propose naturellement
+des mots courants ou usuels). Pour rééquilibrer :
+
+```bash
+npm run generate -- 14 fr --niveau 4-5   # uniquement des mots littéraires à érudit
+npm run generate -- 10 en --niveau=5     # forme longue acceptée
+```
+
+L’option `--niveau` (`--level` en alias) accepte un niveau unique (`4`) ou une fourchette
+(`4-5`, `4à5`).
 
 ## Idées annexes
 

@@ -186,18 +186,13 @@ export function renderResultCard(card, base, state) {
 
     const replay = card.querySelector('.result-actions .btn-primary');
     if (replay) {
-        const sticky = card.dataset.sticky === 'true';
-        const mode = card.dataset.mode;
         const baseHref = card.dataset.replayHref || `${base}/game`;
-        const recallModes = mode === 'identification' || mode === 'reverse' || mode === 'frappe';
         const appendTo = (href, params) => href + (href.includes('?') ? '&' : '?') + params;
-        if (!sticky || recallModes) {
-            const due = dueWords(state);
-            if (due.length > 0) {
-                replay.setAttribute('href', appendTo(baseHref, `mot=${due[0].id}`));
-            } else if (session.unlocked < MAX_LEVEL) {
-                replay.setAttribute('href', appendTo(baseHref, `max=${session.unlocked}`));
-            }
+        const due = dueWords(state);
+        if (due.length > 0) {
+            replay.setAttribute('href', appendTo(baseHref, `mot=${due[0].id}`));
+        } else if (session.unlocked < MAX_LEVEL) {
+            replay.setAttribute('href', appendTo(baseHref, `max=${session.unlocked}`));
         }
     }
 }

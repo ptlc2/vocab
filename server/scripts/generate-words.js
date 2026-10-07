@@ -1,4 +1,4 @@
-import { generateWordsList, generateNewWord } from '../generate.js';
+import { generateWordsList, generateNewWord, parseLevelSpec } from '../generate.js';
 import { findWordId, insertWord, linkWordRelations } from '../vocab.js';
 import { endPool } from '../database.js';
 
@@ -6,8 +6,34 @@ const DEFAULT_COUNT = 10;
 const MAX_COUNT = 200;
 const LANGUAGES = ['fr', 'en'];
 
-const count = Math.max(1, Math.min(MAX_COUNT, Number.parseInt(process.argv[2], 10) || DEFAULT_COUNT));
-const language = LANGUAGES.includes(process.argv[3]) ? process.argv[3] : 'fr';
+function parseArgs(argv) {
+    const positional = [];
+    let levelValue = null;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if (arg === '--niveau' || arg === '--level') {
+            levelValue = argv[i + 1] ?? null;
+            i += 1;
+        } else if (arg.startsWith('--niveau=') || arg.startsWith('--level=')) {
+            levelValue = arg.split('=').slice(1).join('=');
+        } else if (arg.startsWith('--')) {
+            continue;
+        } else {
+            positional.push(arg);
+        }
+    }
+    return { positional, levelValue };
+}
+
+const { positional, levelValue } = parseArgs(process.argv.slice(2));
+const count = Math.max(1, Math.min(MAX_COUNT, Number.parseInt(positional[0], 10) || DEFAULT_COUNT));
+const language = LANGUAGES.includes(positional[1]) ? positional[1] : 'fr';
+const level = levelValue !== null ? parseLevelSpec(levelValue) : null;
+if (levelValue !== null && !level) {
+    console.error('Spécification de niveau invalide (formats attendus : 4, 4-5, 4à5) — abandon.');
+    process.exit(2);
+}
+const levelSpec = level ? `${level.min}-${level.max}` : null;
 const maxWords = count * 2;
 
 function isSingleWord(text) {
@@ -15,8 +41,8 @@ function isSingleWord(text) {
 }
 
 try {
-    console.info(`Génération d'une liste de ${count} mots (${language})…`);
-    const initial = await generateWordsList(count, language);
+    console.info(`Génération d'une liste de ${count} mots (${language}${levelSpec ? `, niveaux ${levelSpec}` : ''})…`);
+    const initial = await generateWordsList(count, language, levelSpec);
 
     const queue = initial.map(text => ({ text, cascade: false }));
     const seen = new Set();

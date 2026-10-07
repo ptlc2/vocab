@@ -113,13 +113,46 @@ function topLevelJsonCandidates(text) {
     return candidates.reverse();
 }
 
-function listPromptFr(count) {
+export function parseLevelSpec(spec) {
+    if (spec === null || spec === undefined) return null;
+    const match = String(spec)
+        .trim()
+        .match(/^([1-5])(?:\s*[-àa]\s*([1-5]))?$/);
+    if (!match) return null;
+    const min = Number.parseInt(match[1], 10);
+    const max = match[2] === undefined ? min : Number.parseInt(match[2], 10);
+    if (min > max) return null;
+    return { min, max };
+}
+
+function levelLineFr(level) {
+    if (!level) return '';
+    const cible =
+        level.min === level.max
+            ? `de niveau de difficulté ${level.min} sur 5`
+            : `de niveau de difficulté ${level.min} à ${level.max} sur 5`;
+    return `Cible de difficulté OBLIGATOIRE : uniquement des mots ${cible}
+(pas de mot courant si la cible est 4 ou plus).`;
+}
+
+function levelLineEn(level) {
+    if (!level) return '';
+    const target =
+        level.min === level.max
+            ? `of difficulty level ${level.min} out of 5`
+            : `of difficulty level ${level.min} to ${level.max} out of 5`;
+    return `MANDATORY difficulty target: only words ${target}
+(no everyday words if the target is 4 or higher).`;
+}
+
+function listPromptFr(count, level) {
     return `
 Tu es un lexicographe francophone qui prépare une liste de mots pour un jeu d'apprentissage du vocabulaire.
 
 Objectif : proposer ${count} mots français qui soient intéressants à apprendre
 (mélange possible entre courant, soutenu, littéraire ou technique), mais sans
 inclure de noms propres ni de sigles.
+${levelLineFr(level)}
 
 Contraintes de sortie :
 - Tu dois renvoyer STRICTEMENT un tableau JSON de chaînes de caractères.
@@ -132,12 +165,13 @@ Réponds uniquement avec ce tableau JSON.
 `.trim();
 }
 
-function listPromptEn(count) {
+function listPromptEn(count, level) {
     return `
 You are an English lexicographer preparing a word list for a vocabulary-learning game.
 
 Goal: propose ${count} English words that are interesting to learn
 (a mix of everyday, formal, literary or technical words), without proper nouns or acronyms.
+${levelLineEn(level)}
 
 Output constraints:
 - Return STRICTLY a JSON array of strings.
@@ -150,8 +184,9 @@ Respond with the JSON array only.
 `.trim();
 }
 
-export async function generateWordsList(count = 10, language = 'fr') {
-    const prompt = language === 'en' ? listPromptEn(count) : listPromptFr(count);
+export async function generateWordsList(count = 10, language = 'fr', levelSpec = null) {
+    const level = parseLevelSpec(levelSpec);
+    const prompt = language === 'en' ? listPromptEn(count, level) : listPromptFr(count, level);
     let lastError;
     for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS; attempt++) {
         const raw = await complete(prompt);
