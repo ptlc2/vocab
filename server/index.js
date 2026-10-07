@@ -85,41 +85,6 @@ app.get('/progress', (req, res) => {
 app.post('/game/answer', async (req, res) => {
     const body = req.body ?? {};
     const mode = ['distinction', 'jumelage', 'reverse'].includes(body.mode) ? body.mode : 'acquisition';
-
-    if (mode === 'jumelage') {
-        const target1 = Number.parseInt(body.target1, 10);
-        const target2 = Number.parseInt(body.target2, 10);
-        const choice1 = Number.parseInt(body.choice1, 10);
-        const choice2 = Number.parseInt(body.choice2, 10);
-        if (![target1, target2, choice1, choice2].every(Number.isInteger)) {
-            res.status(400).render('error', { code: 400, message: 'Réponse invalide' });
-            return;
-        }
-        const [wordA, wordB, choice1Word, choice2Word] = await Promise.all([
-            Vocab.getWordById(target1),
-            Vocab.getWordById(target2),
-            Vocab.getWordById(choice1),
-            Vocab.getWordById(choice2),
-        ]);
-        if (!wordA || !wordB || !choice1Word || !choice2Word) {
-            res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
-            return;
-        }
-        const correctA = choice1 === target1;
-        const correctB = choice2 === target2;
-        const nuance = typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
-        res.render('game-result', {
-            mode,
-            correct: correctA && correctB,
-            correctA,
-            correctB,
-            wordA,
-            wordB,
-            nuance,
-        });
-        return;
-    }
-
     const targetId = Number.parseInt(body.target, 10);
     const choiceId = Number.parseInt(body.choice, 10);
     if (!Number.isInteger(targetId) || !Number.isInteger(choiceId)) {
@@ -127,8 +92,15 @@ app.post('/game/answer', async (req, res) => {
         return;
     }
     const sentence = mode === 'distinction' && typeof body.sentence === 'string' ? body.sentence.slice(0, 500) : null;
-    const nuance = mode === 'distinction' && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
-    const [target, choice] = await Promise.all([Vocab.getWordById(targetId), Vocab.getWordById(choiceId)]);
+    const nuance =
+        (mode === 'distinction' || mode === 'jumelage') && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
+    const otherId = mode === 'jumelage' ? Number.parseInt(body.other, 10) : null;
+    const words = await Promise.all([
+        Vocab.getWordById(targetId),
+        Vocab.getWordById(choiceId),
+        Number.isInteger(otherId) ? Vocab.getWordById(otherId) : null,
+    ]);
+    const [target, choice, other] = words;
     if (!target || !choice) {
         res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
         return;
@@ -139,6 +111,7 @@ app.post('/game/answer', async (req, res) => {
         definition: target.short_definition,
         sentence,
         nuance,
+        other: other ?? null,
         target,
         choice,
     });

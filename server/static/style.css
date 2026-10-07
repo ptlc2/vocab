@@ -734,72 +734,6 @@ a.badge:hover {
     text-align: left;
 }
 
-.pair-word {
-    font-family: var(--font-serif);
-    font-size: 1.5rem;
-    font-weight: 600;
-    text-align: center;
-    margin: 26px 0 12px;
-}
-
-.pair-word:first-of-type {
-    margin-top: 12px;
-}
-
-.pair-choices {
-    display: grid;
-    gap: 8px;
-}
-
-.pair-choice {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
-    background: var(--surface-2);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 0.92rem;
-    line-height: 1.45;
-    transition:
-        border-color 0.15s ease,
-        background 0.15s ease;
-}
-
-.pair-choice:hover {
-    border-color: var(--accent);
-    background: var(--surface);
-}
-
-.pair-choice input {
-    accent-color: var(--accent);
-    margin-top: 4px;
-    flex: none;
-}
-
-.pair-submit {
-    width: 100%;
-    margin-top: 20px;
-}
-
-.pair-result {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 18px;
-    margin-top: 20px;
-    text-align: center;
-}
-
-.pair-result-word .result-word {
-    font-size: 1.6rem;
-    margin: 0 0 4px;
-}
-
-.pair-result-word .result-def {
-    margin: 0;
-}
-
 .game-hint {
     text-align: center;
     color: var(--muted);
@@ -914,9 +848,17 @@ a.badge:hover {
 }
 
 .nuance-card p {
-    margin: 0;
+    margin: 0 0 6px;
     color: var(--muted);
     font-size: 0.92rem;
+}
+
+.nuance-card p:last-child {
+    margin-bottom: 0;
+}
+
+.nuance-card .nuance-text {
+    font-style: italic;
 }
 
 .progress-block {

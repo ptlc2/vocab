@@ -1,50 +1,4 @@
 <%- include('partials/header', { title: 'Résultat', nav: 'game' }) %>
-<%_ if (mode === 'jumelage') { _%>
-<div
-    class="result-card"
-    data-mode="jumelage"
-    data-correct="<%= correct %>"
-    data-a-id="<%= wordA.id %>"
-    data-a-text="<%= wordA.text %>"
-    data-a-difficulty="<%= wordA.difficulty %>"
-    data-a-correct="<%= correctA %>"
-    data-a-categories="<%= JSON.stringify(wordA.categories.map(c => c.name)) %>"
-    data-b-id="<%= wordB.id %>"
-    data-b-text="<%= wordB.text %>"
-    data-b-difficulty="<%= wordB.difficulty %>"
-    data-b-correct="<%= correctB %>"
-    data-b-categories="<%= JSON.stringify(wordB.categories.map(c => c.name)) %>"
->
-    <%_ if (correct) { _%>
-    <p class="verdict correct">Bien vu !</p>
-    <p class="verdict-sub">C’était bien <b><%= wordA.text %></b> et <b><%= wordB.text %></b>.</p>
-    <%_ } else { _%>
-    <p class="verdict incorrect">Raté…</p>
-    <p class="verdict-sub">
-        <%_ if (!correctA && !correctB) { _%>Les deux associations étaient fausses.<%_ } else { _%><%= correctA ? wordB.text : wordA.text %> était mal associé.<%_ } _%>
-    </p>
-    <%_ } _%>
-    <div class="pair-result">
-        <div class="pair-result-word">
-            <p class="result-word"><a href="<%= base %>/words/<%= encodeURIComponent(wordA.text) %>"><%= wordA.text %></a></p>
-            <p class="result-def"><%= wordA.short_definition %></p>
-        </div>
-        <div class="pair-result-word">
-            <p class="result-word"><a href="<%= base %>/words/<%= encodeURIComponent(wordB.text) %>"><%= wordB.text %></a></p>
-            <p class="result-def"><%= wordB.short_definition %></p>
-        </div>
-    </div>
-    <%_ if (nuance) { _%>
-    <div class="nuance-card">
-        <p class="nuance-title">La nuance</p>
-        <p><%= nuance %></p>
-    </div>
-    <%_ } _%>
-    <div class="result-actions">
-        <a class="btn btn-primary" href="<%= base %>/game">Rejouer</a>
-    </div>
-</div>
-<%_ } else { _%>
 <div
     class="result-card"
     data-correct="<%= correct %>"
@@ -73,6 +27,17 @@
         <p><%= nuance %></p>
     </div>
     <%_ } _%>
+    <%_ } else if (mode === 'jumelage') { _%>
+    <p class="result-def"><%= definition %></p>
+    <%_ if (other) { _%>
+    <div class="nuance-card">
+        <p class="nuance-title">Ne pas confondre avec <%= other.text %></p>
+        <p><%= other.short_definition %></p>
+        <%_ if (nuance) { _%>
+        <p class="nuance-text"><%= nuance %></p>
+        <%_ } _%>
+    </div>
+    <%_ } _%>
     <%_ } else { _%>
     <p class="result-def"><%= definition %></p>
     <p class="result-long"><%= target.long_definition %></p>
@@ -85,5 +50,4 @@
         <a class="btn btn-secondary" href="<%= base %>/words/<%= encodeURIComponent(target.text) %>">Voir la fiche</a>
     </div>
 </div>
-<%_ } _%>
 <%- include('partials/footer') %>

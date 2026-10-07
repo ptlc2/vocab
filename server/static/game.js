@@ -125,30 +125,13 @@ function parseCategories(raw) {
 }
 
 export function renderResultCard(card, base, state) {
-    if (card.dataset.mode === 'jumelage') {
-        recordRound(state, {
-            targetId: card.dataset.aId,
-            text: card.dataset.aText,
-            difficulty: Number.parseInt(card.dataset.aDifficulty, 10),
-            correct: card.dataset.aCorrect === 'true',
-            categories: parseCategories(card.dataset.aCategories),
-        });
-        recordRound(state, {
-            targetId: card.dataset.bId,
-            text: card.dataset.bText,
-            difficulty: Number.parseInt(card.dataset.bDifficulty, 10),
-            correct: card.dataset.bCorrect === 'true',
-            categories: parseCategories(card.dataset.bCategories),
-        });
-    } else {
-        recordRound(state, {
-            targetId: card.dataset.targetId,
-            text: card.dataset.targetText,
-            difficulty: Number.parseInt(card.dataset.difficulty, 10),
-            correct: card.dataset.correct === 'true',
-            categories: parseCategories(card.dataset.categories),
-        });
-    }
+    recordRound(state, {
+        targetId: card.dataset.targetId,
+        text: card.dataset.targetText,
+        difficulty: Number.parseInt(card.dataset.difficulty, 10),
+        correct: card.dataset.correct === 'true',
+        categories: parseCategories(card.dataset.categories),
+    });
     const block = el('div', 'progress-block');
     const session = state.session;
     block.appendChild(

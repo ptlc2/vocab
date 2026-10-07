@@ -302,12 +302,17 @@ export async function getReverseGame({ maxDifficulty = null, category = null } =
 
 export async function getPairingGame() {
     const pair = await drawPair();
+    const flip = Math.random() < 0.5;
+    const target = flip ? pair.a_id : pair.b_id;
+    const other = flip ? pair.b_id : pair.a_id;
     return {
         mode: 'jumelage',
-        wordA: { id: pair.a_id, text: pair.a_text, difficulty: pair.a_difficulty },
-        wordB: { id: pair.b_id, text: pair.b_text, difficulty: pair.b_difficulty },
+        targetId: target,
+        difficulty: flip ? pair.a_difficulty : pair.b_difficulty,
+        definition: flip ? pair.a_text : pair.b_text,
+        otherId: other,
         nuance: pair.nuance ?? null,
-        definitions: shuffle([
+        options: shuffle([
             { id: pair.a_id, text: pair.a_def },
             { id: pair.b_id, text: pair.b_def },
         ]),
