@@ -66,17 +66,19 @@ app.get('/words/:word', async (req, res) => {
 app.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.mot, 10);
     const maxId = Number.parseInt(req.query.max, 10);
-    const mode = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage', 'frappe-contexte'].includes(req.query.mode)
+    const mode = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage', 'frappe-contexte'].includes(req.query.mode)
         ? req.query.mode
         : null;
+    const family = ['acquisition', 'distinction'].includes(req.query.famille) ? req.query.famille : null;
     const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
     const game = await Vocab.getGame({
         wordId: Number.isInteger(motId) ? motId : null,
         mode,
+        family,
         maxDifficulty: Number.isInteger(maxId) ? Math.max(1, Math.min(5, maxId)) : null,
         category: category || null,
     });
-    res.render('game', { game, sticky: mode !== null || Number.isInteger(motId) });
+    res.render('game', { game, sticky: mode !== null || family !== null || Number.isInteger(motId), famille: family });
 });
 // Progress route
 app.get('/progress', (req, res) => {
@@ -86,9 +88,12 @@ app.get('/progress', (req, res) => {
 // Game answer route
 app.post('/game/answer', async (req, res) => {
     const body = req.body ?? {};
-    const mode = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage', 'frappe-contexte'].includes(body.mode)
+    const mode = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage', 'frappe-contexte'].includes(body.mode)
         ? body.mode
-        : 'acquisition';
+        : 'identification';
+    const sticky = body.sticky === '1';
+    const famille = ['acquisition', 'distinction'].includes(body.famille) ? body.famille : null;
+    const replayHref = famille ? `${req.app.locals.base}/game?famille=${famille}` : `${req.app.locals.base}/game?mode=${mode}`;
 
     if (mode === 'frappe' || mode === 'frappe-contexte') {
         const targetId = Number.parseInt(body.target, 10);
@@ -102,20 +107,16 @@ app.post('/game/answer', async (req, res) => {
             res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
             return;
         }
-        const otherId = Number.parseInt(body.other, 10);
-        const other = mode === 'frappe-contexte' && Number.isInteger(otherId) ? await Vocab.getWordById(otherId) : null;
         const sentence = mode === 'frappe-contexte' && typeof body.sentence === 'string' ? body.sentence.slice(0, 500) : null;
-        const nuance = mode === 'frappe-contexte' && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
         res.render('game-result', {
             mode,
             correct: Vocab.isCloseMatch(guess, target.text),
             guess,
             definition: target.short_definition,
             sentence,
-            nuance,
-            other: other ?? null,
             example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
-            sticky: body.sticky === '1',
+            replayHref: sticky ? replayHref : `${req.app.locals.base}/game`,
+            sticky,
             target,
             choice: null,
         });
@@ -128,9 +129,9 @@ app.post('/game/answer', async (req, res) => {
         res.status(400).render('error', { code: 400, message: 'Réponse invalide' });
         return;
     }
-    const sentence = mode === 'distinction' && typeof body.sentence === 'string' ? body.sentence.slice(0, 500) : null;
+    const sentence = mode === 'contexte' && typeof body.sentence === 'string' ? body.sentence.slice(0, 500) : null;
     const nuance =
-        (mode === 'distinction' || mode === 'jumelage') && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
+        (mode === 'contexte' || mode === 'jumelage') && typeof body.nuance === 'string' ? body.nuance.slice(0, 500) : null;
     const otherId = mode === 'jumelage' ? Number.parseInt(body.other, 10) : null;
     const words = await Promise.all([
         Vocab.getWordById(targetId),
@@ -150,7 +151,8 @@ app.post('/game/answer', async (req, res) => {
         nuance,
         other: other ?? null,
         example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
-        sticky: body.sticky === '1',
+        replayHref: sticky ? replayHref : `${req.app.locals.base}/game`,
+        sticky,
         target,
         choice,
     });

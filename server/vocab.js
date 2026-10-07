@@ -89,6 +89,15 @@ async function loadWordRelations(word) {
 }
 
 export async function insertWord(word) {
+    if (
+        shortDefinitionCites(word, word.text) ||
+        (word.near_words ?? []).some(near => shortDefinitionCites(word, near)) ||
+        (word.confusions ?? []).some(confusion => shortDefinitionCites(word, confusion.other))
+    ) {
+        throw new Error(
+            `La définition courte de « ${word.text} » cite le mot lui-même ou l'un de ses mots proches — insertion refusée`
+        );
+    }
     return withTransaction(async client => {
         const existing = await client.query('SELECT id FROM word WHERE text = $1', [word.text]);
         if (existing.rows.length > 0) {
@@ -149,6 +158,7 @@ async function difficultyGap(word1Id, word2Id) {
 export async function linkNearWords(word1Id, word2Id) {
     if (word1Id === word2Id) return false;
     if ((await difficultyGap(word1Id, word2Id)) > 1) return false;
+    if (await pairCrossCites(word1Id, word2Id)) return false;
     const result = await queryMany(
         `INSERT INTO near_words (word1_id, word2_id)
         SELECT $1, $2
@@ -165,6 +175,7 @@ export async function linkNearWords(word1Id, word2Id) {
 export async function linkConfusion(word1Id, word2Id, nuance) {
     if (word1Id === word2Id) return false;
     if ((await difficultyGap(word1Id, word2Id)) > 1) return false;
+    if (await pairCrossCites(word1Id, word2Id)) return false;
     const result = await queryMany(
         `INSERT INTO confusion (word1_id, word2_id, nuance)
         SELECT $1, $2, $3
@@ -193,23 +204,30 @@ export async function linkWordRelations(word) {
     return linked;
 }
 
-const GAME_MODES = ['acquisition', 'reverse', 'frappe', 'distinction', 'jumelage'];
+const GAME_MODES = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage'];
+const FAMILY_MODES = {
+    acquisition: ['identification', 'reverse', 'frappe'],
+    distinction: ['contexte', 'jumelage'],
+};
 
-export async function getGame({ wordId = null, mode = null, maxDifficulty = null, category = null } = {}) {
+export async function getGame({ wordId = null, mode = null, family = null, maxDifficulty = null, category = null } = {}) {
     let wanted = mode;
+    if (wanted === null && family !== null) {
+        wanted = FAMILY_MODES[family][Math.floor(Math.random() * FAMILY_MODES[family].length)];
+    }
     if (wanted === null) {
         wanted = category
             ? Math.random() < 0.5
-                ? 'acquisition'
+                ? 'identification'
                 : 'reverse'
             : GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)];
     }
     if (wordId !== null && wanted !== 'reverse' && wanted !== 'frappe') {
-        wanted = 'acquisition';
+        wanted = 'identification';
     }
-    if (wanted === 'distinction' || wanted === 'jumelage' || wanted === 'frappe-contexte') {
+    if (wanted === 'contexte' || wanted === 'jumelage' || wanted === 'frappe-contexte') {
         try {
-            if (wanted === 'distinction') return await getDistinctionGame();
+            if (wanted === 'contexte') return await getDistinctionGame();
             if (wanted === 'jumelage') return await getPairingGame();
             return await getFrappeContexteGame();
         } catch {
@@ -291,7 +309,7 @@ export async function getAcquisitionGame(wordId = null, { maxDifficulty = null, 
     if (!word) throw new Error('Not enough words in database to start a game');
     const words = await drawDistractorDefinitions(word);
     return {
-        mode: 'acquisition',
+        mode: 'identification',
         targetId: word.id,
         difficulty: word.difficulty,
         definition: word.short_definition,
@@ -334,7 +352,6 @@ export async function getFrappeContexteGame() {
     const pair = await drawPair();
     const flip = Math.random() < 0.5;
     const target = { id: flip ? pair.a_id : pair.b_id, text: flip ? pair.a_text : pair.b_text };
-    const otherId = flip ? pair.b_id : pair.a_id;
     const examples = await queryMany('SELECT sentence FROM example WHERE word_id = $1', [target.id]);
     const sentence = pickRandomExample(examples, target.text);
     return {
@@ -343,8 +360,6 @@ export async function getFrappeContexteGame() {
         difficulty: flip ? pair.a_difficulty : pair.b_difficulty,
         definition: sentence ? blankOutWord(sentence, target.text, true) : flip ? pair.a_def : pair.b_def,
         sentence,
-        nuance: pair.nuance ?? null,
-        otherId,
         options: [],
     };
 }
@@ -418,7 +433,7 @@ export async function getDistinctionGame() {
     if (definition === null) throw new Error('No usable prompt for the picked pair');
 
     return {
-        mode: 'distinction',
+        mode: 'contexte',
         targetId: target.id,
         difficulty: target.difficulty,
         definition,
@@ -431,6 +446,19 @@ export async function getDistinctionGame() {
 function wordPattern(word) {
     const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`(?<![\\p{L}])${escaped}(?![\\p{L}])`, 'iu');
+}
+
+function shortDefinitionCites(word, citedText) {
+    if (typeof word.short_definition !== 'string' || !citedText) return false;
+    return wordPattern(citedText).test(word.short_definition);
+}
+
+async function pairCrossCites(word1Id, word2Id) {
+    const rows = await queryMany('SELECT id, text, short_definition FROM word WHERE id = ANY($1)', [[word1Id, word2Id]]);
+    const w1 = rows.find(row => row.id === word1Id);
+    const w2 = rows.find(row => row.id === word2Id);
+    if (!w1 || !w2) return false;
+    return shortDefinitionCites(w1, w2.text) || shortDefinitionCites(w2, w1.text);
 }
 
 function containsWord(sentence, word) {

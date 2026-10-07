@@ -10,6 +10,7 @@ _%>
     data-difficulty="<%= target.difficulty %>"
     data-mode="<%= mode %>"
     data-sticky="<%= sticky %>"
+    data-replay-href="<%= replayHref %>"
     data-categories="<%= JSON.stringify(target.categories.map(c => c.name)) %>"
 >
     <%_ if (correct) { _%>
@@ -24,7 +25,7 @@ _%>
     <%_ } _%>
     <%_ } _%>
     <p class="result-word"><a href="<%= base %>/words/<%= encodeURIComponent(target.text) %>"><%= target.text %></a></p>
-    <%_ if (mode === 'distinction') { _%>
+    <%_ if (mode === 'contexte') { _%>
     <%_ if (sentence) { _%>
     <p class="result-example"><%= sentence %></p>
     <%_ } _%>
@@ -51,17 +52,8 @@ _%>
     <%_ if (sentence) { _%>
     <p class="result-example"><%= sentence %></p>
     <%_ } _%>
-    <%_ if (target.examples.length > 0) { _%>
+    <%_ if (example) { _%>
     <p class="result-example"><%= example.sentence %></p>
-    <%_ } _%>
-    <%_ if (other && mode === 'frappe-contexte') { _%>
-    <div class="nuance-card">
-        <p class="nuance-title">Ne pas confondre avec <%= other.text %></p>
-        <p><%= other.short_definition %></p>
-        <%_ if (nuance) { _%>
-        <p class="nuance-text"><%= nuance %></p>
-        <%_ } _%>
-    </div>
     <%_ } _%>
     <%_ } else { _%>
     <p class="result-def"><%= definition %></p>
@@ -71,7 +63,7 @@ _%>
     <%_ } _%>
     <%_ } _%>
     <div class="result-actions">
-        <a class="btn btn-primary" href="<%= base %>/game<%= sticky ? `?mode=${mode}` : '' %>">Rejouer</a>
+        <a class="btn btn-primary" href="<%= replayHref %>">Rejouer</a>
         <a class="btn btn-secondary" href="<%= base %>/words/<%= encodeURIComponent(target.text) %>">Voir la fiche</a>
     </div>
 </div>

@@ -166,7 +166,7 @@ export function renderResultCard(card, base, state) {
     );
     const c = counts(state);
     const line = el('p', 'progress-line muted');
-    line.appendChild(document.createTextNode(`Maîtrisés : ${c.mastered} · En cours : ${c.learning} · À revoir : ${c.due} — `));
+    line.appendChild(document.createTextNode(`Maîtrisés : ${c.mastered} · En cours : ${c.learning} · À revoir : ${c.due} · `));
     line.appendChild(el('a', null, 'voir la collection', `${base}/progress`));
     block.appendChild(line);
     card.appendChild(block);
@@ -175,20 +175,15 @@ export function renderResultCard(card, base, state) {
     if (replay) {
         const sticky = card.dataset.sticky === 'true';
         const mode = card.dataset.mode;
-        const recallModes = mode === 'acquisition' || mode === 'reverse' || mode === 'frappe';
-        if (sticky && !recallModes) {
-            // mode distinction choisi explicitement : le lien serveur (?mode=) reste tel quel
-        } else {
+        const baseHref = card.dataset.replayHref || `${base}/game`;
+        const recallModes = mode === 'identification' || mode === 'reverse' || mode === 'frappe';
+        const appendTo = (href, params) => href + (href.includes('?') ? '&' : '?') + params;
+        if (!sticky || recallModes) {
             const due = dueWords(state);
             if (due.length > 0) {
-                replay.setAttribute(
-                    'href',
-                    sticky ? `${base}/game?mode=${mode}&mot=${due[0].id}` : `${base}/game?mot=${due[0].id}`
-                );
-            } else if (!sticky && session.unlocked < MAX_LEVEL) {
-                replay.setAttribute('href', `${base}/game?max=${session.unlocked}`);
-            } else if (sticky && session.unlocked < MAX_LEVEL) {
-                replay.setAttribute('href', `${base}/game?mode=${mode}&max=${session.unlocked}`);
+                replay.setAttribute('href', appendTo(baseHref, `mot=${due[0].id}`));
+            } else if (session.unlocked < MAX_LEVEL) {
+                replay.setAttribute('href', appendTo(baseHref, `max=${session.unlocked}`));
             }
         }
     }
@@ -233,7 +228,7 @@ export function renderProgress(root, base, state) {
             el(
                 'p',
                 'page-sub',
-                `Rien pour l’instant — l’enregistrement de tes rounds a démarré avec cette mise à jour : joue quelques parties et ta collection apparaîtra ici.`
+                `Rien pour l’instant : l’enregistrement de tes rounds a démarré avec cette mise à jour, joue quelques parties et ta collection apparaîtra ici.`
             )
         );
         const play = el('a', 'btn btn-primary', 'Jouer', `${base}/game`);
