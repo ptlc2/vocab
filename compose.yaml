@@ -7,6 +7,7 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DBNAME: vocab
       BASE_PATH: ${BASE_PATH-/vocab}
+      LANGUAGES: ${LANGUAGES:-fr}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       MISTRAL_MODEL: ${MISTRAL_MODEL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

@@ -4,21 +4,54 @@ import { Difficulties } from './difficulties.js';
 
 const port = process.env.PORT ?? '80';
 
+const LANGUAGES = (process.env.LANGUAGES ?? process.env.LANGUAGE ?? 'fr')
+    .split(',')
+    .map(lang => lang.trim())
+    .filter(Boolean);
+const deploymentBase = process.env.BASE_PATH ?? '';
+
 const app = Express();
 
-app.use(Express.static('static'));
 app.use(Express.urlencoded({ extended: false }));
 
 app.set('view engine', 'ejs');
 app.set('views', 'views');
-app.locals.base = process.env.BASE_PATH ?? '/vocab';
-app.locals.language = process.env.LANGUAGE ?? 'fr';
 app.locals.description =
     'Apprendre le vocabulaire français par le jeu : définitions, nuances, mots proches et confusions classiques.';
 app.locals.difficulties = Difficulties;
 
-// Locale middleware
+function setDefaultLocals(res) {
+    if (!res.locals.language) {
+        res.locals.language = LANGUAGES[0];
+        res.locals.base = `${deploymentBase}/${LANGUAGES[0]}`;
+    }
+}
+
+// Root: redirect to the browser's language if served, else the default language
+app.get('/', (req, res) => {
+    const negotiated = (req.acceptsLanguages() ?? [])
+        .map(lang => lang.split('-')[0].toLowerCase())
+        .find(lang => LANGUAGES.includes(lang));
+    res.redirect(302, `${deploymentBase}/${negotiated ?? LANGUAGES[0]}`);
+});
+
+// Legacy paths without the language prefix: redirect to the default language
+const LANGLESS_PREFIXES = ['words', 'game', 'progress', 'style.css', 'game.js'];
 app.use((req, res, next) => {
+    const firstSegment = req.path.split('/')[1];
+    if (req.method === 'GET' && LANGLESS_PREFIXES.includes(firstSegment)) {
+        res.redirect(302, `${deploymentBase}/${LANGUAGES[0]}${req.originalUrl}`);
+        return;
+    }
+    next();
+});
+
+const router = Express.Router();
+
+router.use(Express.static('static'));
+
+// Locale middleware
+router.use((req, res, next) => {
     res.locals.locale = firstValidLocale(req.acceptsLanguages());
     next();
 });
@@ -37,13 +70,13 @@ function firstValidLocale(langs) {
 }
 
 // Homepage route
-app.get('/', async (req, res) => {
+router.get('/', async (req, res) => {
     const stats = await Vocab.getStats();
     res.render('index', { stats });
 });
 
 // Word list route
-app.get('/words', async (req, res) => {
+router.get('/words', async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 60) : '';
     const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
     const pageParam = Number.parseInt(req.query.page, 10);
@@ -60,7 +93,7 @@ app.get('/words', async (req, res) => {
 });
 
 // Word route
-app.get('/words/:word', async (req, res) => {
+router.get('/words/:word', async (req, res) => {
     const word = await Vocab.getWordByText(req.params.word);
     if (word) {
         res.render('word', { word });
@@ -68,8 +101,9 @@ app.get('/words/:word', async (req, res) => {
         res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
     }
 });
+
 // Game route
-app.get('/game', async (req, res) => {
+router.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.mot, 10);
     const maxId = Number.parseInt(req.query.max, 10);
     const mode = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage', 'frappe-contexte'].includes(req.query.mode)
@@ -86,20 +120,22 @@ app.get('/game', async (req, res) => {
     });
     res.render('game', { game, sticky: mode !== null || family !== null || Number.isInteger(motId), famille: family });
 });
+
 // Progress route
-app.get('/progress', (req, res) => {
+router.get('/progress', (req, res) => {
     res.render('progress');
 });
 
 // Game answer route
-app.post('/game/answer', async (req, res) => {
+router.post('/game/answer', async (req, res) => {
     const body = req.body ?? {};
     const mode = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage', 'frappe-contexte'].includes(body.mode)
         ? body.mode
         : 'identification';
     const sticky = body.sticky === '1';
     const famille = ['acquisition', 'distinction'].includes(body.famille) ? body.famille : null;
-    const replayHref = famille ? `${req.app.locals.base}/game?famille=${famille}` : `${req.app.locals.base}/game?mode=${mode}`;
+    const base = res.locals.base;
+    const replayHref = famille ? `${base}/game?famille=${famille}` : `${base}/game?mode=${mode}`;
 
     if (mode === 'frappe' || mode === 'frappe-contexte') {
         const targetId = Number.parseInt(body.target, 10);
@@ -121,7 +157,7 @@ app.post('/game/answer', async (req, res) => {
             definition: target.short_definition,
             sentence,
             example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
-            replayHref: sticky ? replayHref : `${req.app.locals.base}/game`,
+            replayHref: sticky ? replayHref : `${base}/game`,
             sticky,
             target,
             choice: null,
@@ -157,15 +193,39 @@ app.post('/game/answer', async (req, res) => {
         nuance,
         other: other ?? null,
         example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
-        replayHref: sticky ? replayHref : `${req.app.locals.base}/game`,
+        replayHref: sticky ? replayHref : `${base}/game`,
         sticky,
         target,
         choice,
     });
 });
 
-// 404 handler
-app.use((req, res, _next) => {
+// 404 handler (within a language)
+router.use((req, res) => {
+    setDefaultLocals(res);
+    res.status(404).render('error', { code: 404, message: 'Page non trouvée' });
+});
+
+// Language gate: serve each language under its own path prefix
+app.use(
+    '/:lang',
+    (req, res, next) => {
+        const lang = String(req.params.lang ?? '').toLowerCase();
+        if (!LANGUAGES.includes(lang)) {
+            setDefaultLocals(res);
+            res.status(404).render('error', { code: 404, message: 'Page non trouvée' });
+            return;
+        }
+        res.locals.language = lang;
+        res.locals.base = `${deploymentBase}/${lang}`;
+        next();
+    },
+    router
+);
+
+// 404 for anything else (unknown language or path)
+app.use((req, res) => {
+    setDefaultLocals(res);
     res.status(404).render('error', { code: 404, message: 'Page non trouvée' });
 });
 
@@ -182,6 +242,7 @@ app.use((req, res, next) => {
 
 app.use((err, req, res, _next) => {
     console.error(err);
+    setDefaultLocals(res);
     res.status(500).render('error', { code: 500, message: 'Erreur interne du serveur' });
 });
 
