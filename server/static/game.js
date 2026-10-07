@@ -162,7 +162,6 @@ export function renderResultCard(card, base, state) {
                     'href',
                     sticky ? `${base}/game?mode=${mode}&mot=${due[0].id}` : `${base}/game?mot=${due[0].id}`
                 );
-                replay.textContent = 'Rejouer un mot à revoir';
             } else if (!sticky && session.unlocked < MAX_LEVEL) {
                 replay.setAttribute('href', `${base}/game?max=${session.unlocked}`);
             } else if (sticky && session.unlocked < MAX_LEVEL) {

@@ -142,7 +142,7 @@ Pour le mot donné, tu dois produire UN SEUL objet JSON STRICT (l'objet lui-mêm
 - "text" : le mot lui-même
 - "difficulty" : entier de 1 (courant) à 5 (érudit)
 - "register" : exactement l'une de "familier", "courant", "soutenu", "litteraire", "technique"
-- "short_definition" : définition en une phrase courte
+- "short_definition" : définition en une phrase courte — elle ne doit JAMAIS employer le mot lui-même, ni un de ses mots proches ou confondables (ni leurs variantes)
 - "long_definition" : définition développée en deux ou trois phrases
 - "origin" : origine étymologique (latin, grec, autre langue, etc.) ou null si inconnue
 - "categories" : tableau de thèmes ou domaines d'usage (exemples : "culinaire", "marine", "informatique", "littérature", "temps", "émotions", "caractère", "nature", "philosophie", "travail")

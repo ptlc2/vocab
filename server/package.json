@@ -10,7 +10,9 @@
         "format:fix": "prettier --write .",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
-        "generate": "node scripts/generate-words.js"
+        "generate": "node scripts/generate-words.js",
+        "confusions": "node scripts/generate-confusions.js",
+        "fix-defs": "node scripts/fix-definitions.js"
     },
     "author": "Ambi",
     "license": "ISC",

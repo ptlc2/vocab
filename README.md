@@ -10,9 +10,11 @@ L’objectif n’est pas l’accumulation mécanique de mots, mais leur **approp
 ## Modes de jeu
 
 ### 🧠 Acquisition lexicale
+
 Ce mode constitue le socle du jeu.
 
 Le joueur est confronté à de nouveaux mots, présentés avec leurs définitions, parfois mises en tension par des propositions voisines ou des formulations piégeuses. Chaque mode existe en trois formes :
+
 - **normale** — retrouver le mot à partir de sa définition,
 - **inversée** — identifier la définition correcte d’un mot donné,
 - **avancée (frappe)** — retrouver le mot en le tapant : une faute de frappe passe, un autre mot non.
@@ -24,9 +26,11 @@ Chaque réussite renforce la familiarité avec le mot ; les échecs, eux, décle
 ---
 
 ### ⚖️ Distinction sémantique
+
 Ce mode est dédié à l’exploration des **nuances lexicales**.
 
 Deux mots proches — synonymes imparfaits, faux jumeaux, termes souvent confondus — sont mis en regard. Le joueur doit :
+
 - discerner leurs différences de sens,
 - choisir le mot le plus juste selon un contexte donné,
 - associer chaque mot à sa définition spécifique.
@@ -39,11 +43,11 @@ Ce mode vise à affiner la précision expressive et à développer une sensibili
 
 Le jeu s’organise autour d’une gradation lexicale, où chaque palier introduit des mots perçus comme plus abstraits, plus rares ou plus marqués stylistiquement :
 
-- **Basique** — vocabulaire courant, immédiatement accessible  
-- **Usuel** — lexique standard, légèrement plus précis ou abstrait  
-- **Soutenu** — termes fréquents dans l’écrit exigeant ou la presse de fond  
-- **Littéraire** — vocabulaire rare, expressif, souvent marqué stylistiquement  
-- **Érudit** — mots savants, académiques ou d’origine savante, à forte densité conceptuelle  
+- **Basique** — vocabulaire courant, immédiatement accessible
+- **Usuel** — lexique standard, légèrement plus précis ou abstrait
+- **Soutenu** — termes fréquents dans l’écrit exigeant ou la presse de fond
+- **Littéraire** — vocabulaire rare, expressif, souvent marqué stylistiquement
+- **Érudit** — mots savants, académiques ou d’origine savante, à forte densité conceptuelle
 
 La progression s’effectue naturellement, en fonction des réussites du joueur.
 
@@ -52,9 +56,11 @@ La progression s’effectue naturellement, en fonction des réussites du joueur.
 ## Idées annexes
 
 ### 📚 Collection de mots
+
 Chaque mot correctement assimilé peut être intégré à une **collection personnelle**.
 
 Ces collections sont organisées par **catégories thématiques ou stylistiques** (émotions, abstractions, vocabulaire littéraire, etc.) et se débloquent progressivement au fil des réussites. Elles servent à la fois de :
+
 - trace visible de la progression,
 - outil de révision ciblée,
 - incitation à explorer des champs lexicaux plus exigeants.
