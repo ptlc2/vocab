@@ -14,8 +14,12 @@
     <p><b>Registre :</b> <%= word.register %></p>
     <p><b>Définition courte :</b> <%= word.short_definition %></p>
     <p><b>Définition longue :</b> <%= word.long_definition %></p>
+<%_ if (word.origin) { _%>
     <p><b>Origine :</b> <%= word.origin %></p>
+<%_ } _%>
+<%_ if (word.notes) { _%>
     <p><b>Notes :</b> <%= word.notes %></p>
+<%_ } _%>
     <p><b>Création :</b> <time datetime="<%= word.created_at.toISOString() %>"><%= word.created_at.toLocaleString(locale) %></time></p>
     <p><b>Modification :</b> <time datetime="<%= word.updated_at.toISOString() %>"><%= word.updated_at.toLocaleString(locale) %></time></p>
     <p><b>Catégories :</b></p>
@@ -33,13 +37,13 @@
     <p><b>Mots proches :</b></p>
     <ul>
     <%_ word.near_words.forEach(nearWord => { _%>
-        <li><a href="<%= base %>/words/<%= nearWord.id %>"><%= nearWord.text %></a></li>
+        <li><a href="<%= base %>/words/<%= encodeURIComponent(nearWord.text) %>"><%= nearWord.text %></a></li>
     <%_ }); _%>
     </ul>
     <p><b>Mots confondables :</b></p>
     <ul>
     <%_ word.confusions.forEach(confusion => { _%>
-        <li><a href="<%= base %>/words/<%= confusion.id %>"><%= confusion.text %></a> (<%= confusion.nuance %>)</li>
+        <li><a href="<%= base %>/words/<%= encodeURIComponent(confusion.text) %>"><%= confusion.text %></a> (<%= confusion.nuance %>)</li>
     <%_ }); _%>
     </ul>
 </body>

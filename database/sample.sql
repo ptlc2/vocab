@@ -64,3 +64,6 @@ VALUES (1, 3, 'Le terme "volubile" met l’accent sur la fluidité et la rapidit
 -- prolixe ~ verbeux
 INSERT INTO near_words (word1_id, word2_id)
 VALUES (2, 4);
+
+-- Resynchronisation des séquences après les ids explicites
+SELECT setval('word_id_seq', (SELECT MAX(id) FROM word));

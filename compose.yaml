@@ -6,7 +6,9 @@ services:
       POSTGRES_USERNAME: user
       POSTGRES_PASSWORD: secret
       POSTGRES_DBNAME: vocab
-      MISTRAL_API_KEY: ${MISTRAL_API_KEY?}
+      BASE_PATH: ${BASE_PATH-/vocab}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - 80
     restart: always
@@ -31,9 +33,9 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: vocab
     volumes:
-      - database_data:/var/lib/postgresql/data
+      - database_data:/var/lib/postgresql
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-#     - ./database/sample.sql:/docker-entrypoint-initdb.d/sample.sql:ro
+    #     - ./database/sample.sql:/docker-entrypoint-initdb.d/sample.sql:ro
     ports:
       - 5432
     healthcheck:

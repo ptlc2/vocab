@@ -11,7 +11,7 @@
     <h1>Tous les mots</h1>
     <ul>
     <%_ words.forEach(function(word) { _%>
-        <li><a href="<%= base %>/words/<%= word.text %>"><%= word.text %></a></li>
+        <li><a href="<%= base %>/words/<%= encodeURIComponent(word.text) %>"><%= word.text %></a></li>
     <%_ }); _%>
     </ul>
 </body>
