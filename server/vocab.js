@@ -138,8 +138,17 @@ async function getOrCreateCategoryId(client, name) {
     return selected.rows[0].id;
 }
 
+async function difficultyGap(word1Id, word2Id) {
+    const rows = await queryMany('SELECT id, difficulty FROM word WHERE id = ANY($1)', [[word1Id, word2Id]]);
+    if (rows.length < 2) return null;
+    const d1 = rows.find(row => row.id === word1Id)?.difficulty;
+    const d2 = rows.find(row => row.id === word2Id)?.difficulty;
+    return Math.abs(d1 - d2);
+}
+
 export async function linkNearWords(word1Id, word2Id) {
     if (word1Id === word2Id) return false;
+    if ((await difficultyGap(word1Id, word2Id)) > 1) return false;
     const result = await queryMany(
         `INSERT INTO near_words (word1_id, word2_id)
         SELECT $1, $2
@@ -155,6 +164,7 @@ export async function linkNearWords(word1Id, word2Id) {
 
 export async function linkConfusion(word1Id, word2Id, nuance) {
     if (word1Id === word2Id) return false;
+    if ((await difficultyGap(word1Id, word2Id)) > 1) return false;
     const result = await queryMany(
         `INSERT INTO confusion (word1_id, word2_id, nuance)
         SELECT $1, $2, $3

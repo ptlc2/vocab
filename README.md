@@ -59,6 +59,11 @@ Ces collections sont organisées par **catégories thématiques ou stylistiques*
 
 ---
 
+### ⌨️ Mode frappe (idée)
+Sans choix multiple : la définition est donnée, on tape le mot au clavier, lettre par lettre. La réponse est validée si elle est **semblable à ~99 %** au mot attendu — une faute de frappe passe, un mot faux non.
+
+---
+
 **Vocab** se veut à la fois jeu et atelier linguistique : un espace où l’on apprend à manier les mots avec justesse, élégance et discernement.
 
 ---

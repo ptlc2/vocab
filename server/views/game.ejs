@@ -20,6 +20,9 @@ _%>
     <p class="game-definition"><%= game.definition %></p>
     <input type="hidden" name="target" value="<%= game.targetId %>" />
     <input type="hidden" name="mode" value="<%= game.mode %>" />
+    <%_ if (sticky) { _%>
+    <input type="hidden" name="sticky" value="1" />
+    <%_ } _%>
     <%_ if (game.sentence) { _%>
     <input type="hidden" name="sentence" value="<%= game.sentence %>" />
     <%_ } _%>

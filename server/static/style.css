@@ -703,6 +703,14 @@ a.badge:hover {
     padding: 0;
 }
 
+.options li {
+    display: flex;
+}
+
+.options li .option-btn {
+    flex: 1;
+}
+
 .option-btn {
     width: 100%;
     padding: 14px 16px;

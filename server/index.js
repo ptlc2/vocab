@@ -74,7 +74,7 @@ app.get('/game', async (req, res) => {
         maxDifficulty: Number.isInteger(maxId) ? Math.max(1, Math.min(5, maxId)) : null,
         category: category || null,
     });
-    res.render('game', { game });
+    res.render('game', { game, sticky: mode !== null || Number.isInteger(motId) });
 });
 // Progress route
 app.get('/progress', (req, res) => {
@@ -112,6 +112,7 @@ app.post('/game/answer', async (req, res) => {
         sentence,
         nuance,
         other: other ?? null,
+        sticky: body.sticky === '1',
         target,
         choice,
     });

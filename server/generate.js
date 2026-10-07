@@ -148,7 +148,7 @@ Pour le mot donné, tu dois produire UN SEUL objet JSON STRICT (l'objet lui-mêm
 - "categories" : tableau de thèmes ou domaines d'usage (exemples : "culinaire", "marine", "informatique", "littérature", "temps", "émotions", "caractère", "nature", "philosophie", "travail")
 - "examples" : tableau de 2 ou 3 phrases d'exemple montrant l'usage du mot (au moins UNE obligatoire)
 - "near_words" : tableau de mots proches (synonymes imparfaits, mêmes sphères d'usage), 0 à 4
-- "confusions" : tableau de 0 à 2 objets {"other" : mot souvent confondu avec, "nuance" : la différence en une ou deux phrases courtes}
+- "confusions" : tableau de 0 à 2 objets {"other" : mot souvent confondu avec, "nuance" : la différence en une ou deux phrases courtes}. Le mot confondu doit être de niveau de difficulté IDENTIQUE ou PROCHE (au plus 1 d'écart), jamais 2 ou plus.
 
 Exemple de réponse attendue (pour le mot « volubile ») :
 {
