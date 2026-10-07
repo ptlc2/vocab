@@ -71,7 +71,7 @@ function firstValidLocale(langs) {
 
 // Homepage route
 router.get('/', async (req, res) => {
-    const stats = await Vocab.getStats();
+    const stats = await Vocab.getStats(res.locals.language);
     res.render('index', { stats });
 });
 
@@ -84,8 +84,9 @@ router.get('/words', async (req, res) => {
         q,
         category,
         page: Number.isInteger(pageParam) && pageParam > 0 ? Math.min(pageParam, 1000) : 1,
+        language: res.locals.language,
     });
-    const categories = await Vocab.getCategoriesWithCounts();
+    const categories = await Vocab.getCategoriesWithCounts(res.locals.language);
     const groups = [1, 2, 3, 4, 5]
         .map(level => ({ ...Difficulties[level], words: words.filter(word => word.difficulty === level) }))
         .filter(group => group.words.length > 0);
@@ -94,7 +95,7 @@ router.get('/words', async (req, res) => {
 
 // Word route
 router.get('/words/:word', async (req, res) => {
-    const word = await Vocab.getWordByText(req.params.word);
+    const word = await Vocab.getWordByText(req.params.word, res.locals.language);
     if (word) {
         res.render('word', { word });
     } else {
@@ -117,6 +118,7 @@ router.get('/game', async (req, res) => {
         family,
         maxDifficulty: Number.isInteger(maxId) ? Math.max(1, Math.min(5, maxId)) : null,
         category: category || null,
+        language: res.locals.language,
     });
     res.render('game', { game, sticky: mode !== null || family !== null || Number.isInteger(motId), famille: family });
 });

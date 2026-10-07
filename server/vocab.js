@@ -2,7 +2,7 @@ import { queryMany, queryOne, withTransaction } from './database.js';
 
 const WORDS_PAGE_SIZE = 100;
 
-export async function getWordsWithMeta({ q = '', category = '', page = 1, pageSize = WORDS_PAGE_SIZE } = {}) {
+export async function getWordsWithMeta({ q = '', category = '', page = 1, pageSize = WORDS_PAGE_SIZE, language = 'fr' } = {}) {
     const limit = Math.max(1, Math.min(200, pageSize));
     let total;
     let wordsQuery;
@@ -11,37 +11,38 @@ export async function getWordsWithMeta({ q = '', category = '', page = 1, pageSi
         const like = `%${q}%`;
         ({ count: total } = await queryOne(
             `SELECT count(*)::int AS count FROM word
-            WHERE text ILIKE $1 OR short_definition ILIKE $1`,
-            [like]
+            WHERE language = $2 AND (text ILIKE $1 OR short_definition ILIKE $1)`,
+            [like, language]
         ));
         wordsQuery = `SELECT id, text, difficulty, register, short_definition FROM word
-            WHERE text ILIKE $1 OR short_definition ILIKE $1
+            WHERE language = $2 AND (text ILIKE $1 OR short_definition ILIKE $1)
             ORDER BY difficulty, text
-            LIMIT $2 OFFSET $3`;
-        wordsValues = [like, limit];
+            LIMIT $3 OFFSET $4`;
+        wordsValues = [like, language, limit];
     } else if (category) {
         ({ count: total } = await queryOne(
             `SELECT count(*)::int AS count
             FROM word w
             JOIN word_category wc ON wc.word_id = w.id
             JOIN category c ON c.id = wc.category_id
-            WHERE c.name = $1`,
-            [category]
+            WHERE w.language = $2 AND c.name = $1`,
+            [category, language]
         ));
         wordsQuery = `SELECT w.id, w.text, w.difficulty, w.register, w.short_definition
             FROM word w
             JOIN word_category wc ON wc.word_id = w.id
             JOIN category c ON c.id = wc.category_id
-            WHERE c.name = $1
+            WHERE w.language = $2 AND c.name = $1
             ORDER BY w.difficulty, w.text
-            LIMIT $2 OFFSET $3`;
-        wordsValues = [category, limit];
+            LIMIT $3 OFFSET $4`;
+        wordsValues = [category, language, limit];
     } else {
-        ({ count: total } = await queryOne('SELECT count(*)::int AS count FROM word'));
+        ({ count: total } = await queryOne('SELECT count(*)::int AS count FROM word WHERE language = $1', [language]));
         wordsQuery = `SELECT id, text, difficulty, register, short_definition FROM word
+            WHERE language = $1
             ORDER BY difficulty, text
-            LIMIT $1 OFFSET $2`;
-        wordsValues = [limit];
+            LIMIT $2 OFFSET $3`;
+        wordsValues = [language, limit];
     }
     const pageCount = Math.max(1, Math.ceil(total / limit));
     const safePage = Math.min(Math.max(1, page), pageCount);
@@ -49,30 +50,37 @@ export async function getWordsWithMeta({ q = '', category = '', page = 1, pageSi
     return { words, total, page: safePage, pageCount };
 }
 
-export async function getCategoriesWithCounts() {
+export async function getCategoriesWithCounts(language = 'fr') {
     return queryMany(
         `SELECT c.id, c.name, count(wc.word_id)::int AS word_count
         FROM category c
         JOIN word_category wc ON wc.category_id = c.id
+        JOIN word w ON w.id = wc.word_id
+        WHERE w.language = $1
         GROUP BY c.id, c.name
         HAVING count(wc.word_id) >= 2
         ORDER BY count(wc.word_id) DESC, c.name ASC
-        LIMIT 10`
+        LIMIT 10`,
+        [language]
     );
 }
 
-export async function getStats() {
+export async function getStats(language = 'fr') {
     return queryOne(
         `SELECT
-            (SELECT count(*) FROM word)::int AS words,
-            (SELECT count(*) FROM category)::int AS categories,
-            (SELECT count(*) FROM example)::int AS examples,
-            (SELECT count(*) FROM confusion)::int AS confusions`
+            (SELECT count(*) FROM word WHERE language = $1)::int AS words,
+            (SELECT count(DISTINCT c.id) FROM category c
+                JOIN word_category wc ON wc.category_id = c.id
+                JOIN word w ON w.id = wc.word_id
+                WHERE w.language = $1)::int AS categories,
+            (SELECT count(*) FROM example e JOIN word w ON w.id = e.word_id WHERE w.language = $1)::int AS examples,
+            (SELECT count(*) FROM confusion cf JOIN word w ON w.id = cf.word1_id WHERE w.language = $1)::int AS confusions`,
+        [language]
     );
 }
 
-export async function findWordId(text) {
-    const word = await queryOne('SELECT id FROM word WHERE text = $1', [text]);
+export async function findWordId(text, language = 'fr') {
+    const word = await queryOne('SELECT id FROM word WHERE text = $1 AND language = $2', [text, language]);
     return word ? word.id : null;
 }
 
@@ -81,8 +89,8 @@ export async function getWordById(wordId) {
     return loadWordRelations(word);
 }
 
-export async function getWordByText(text) {
-    const word = await queryOne('SELECT * FROM word WHERE text = $1', [text]);
+export async function getWordByText(text, language = 'fr') {
+    const word = await queryOne('SELECT * FROM word WHERE text = $1 AND language = $2', [text, language]);
     return loadWordRelations(word);
 }
 
@@ -125,17 +133,19 @@ export async function insertWord(word) {
         );
     }
     return withTransaction(async client => {
-        const existing = await client.query('SELECT id FROM word WHERE text = $1', [word.text]);
+        const language = word.language ?? 'fr';
+        const existing = await client.query('SELECT id FROM word WHERE text = $1 AND language = $2', [word.text, language]);
         if (existing.rows.length > 0) {
             return { id: existing.rows[0].id, created: false };
         }
 
         const inserted = await client.query(
-            `INSERT INTO word (text, difficulty, register, short_definition, long_definition, origin, notes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO word (text, language, difficulty, register, short_definition, long_definition, origin, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id`,
             [
                 word.text,
+                language,
                 word.difficulty,
                 word.register,
                 word.short_definition,
@@ -219,12 +229,13 @@ export async function linkWordRelations(word) {
     const wordId = await findWordId(word.text);
     if (wordId === null) return false;
     let linked = 0;
+    const language = word.language ?? 'fr';
     for (const text of word.near_words ?? []) {
-        const otherId = await findWordId(text);
+        const otherId = await findWordId(text, language);
         if (otherId !== null && (await linkNearWords(wordId, otherId))) linked += 1;
     }
     for (const confusion of word.confusions ?? []) {
-        const otherId = await findWordId(confusion.other);
+        const otherId = await findWordId(confusion.other, language);
         if (otherId !== null && (await linkConfusion(wordId, otherId, confusion.nuance))) linked += 1;
     }
     return linked;
@@ -236,7 +247,14 @@ const FAMILY_MODES = {
     distinction: ['contexte', 'jumelage'],
 };
 
-export async function getGame({ wordId = null, mode = null, family = null, maxDifficulty = null, category = null } = {}) {
+export async function getGame({
+    wordId = null,
+    mode = null,
+    family = null,
+    maxDifficulty = null,
+    category = null,
+    language = 'fr',
+} = {}) {
     let wanted = mode;
     if (wanted === null && family !== null) {
         wanted = FAMILY_MODES[family][Math.floor(Math.random() * FAMILY_MODES[family].length)];
@@ -253,23 +271,23 @@ export async function getGame({ wordId = null, mode = null, family = null, maxDi
     }
     if (wanted === 'contexte' || wanted === 'jumelage' || wanted === 'frappe-contexte') {
         try {
-            if (wanted === 'contexte') return await getDistinctionGame();
-            if (wanted === 'jumelage') return await getPairingGame();
-            return await getFrappeContexteGame();
+            if (wanted === 'contexte') return await getDistinctionGame(language);
+            if (wanted === 'jumelage') return await getPairingGame(language);
+            return await getFrappeContexteGame(language);
         } catch {
-            return getAcquisitionGame(null, { maxDifficulty, category });
+            return getAcquisitionGame(null, { maxDifficulty, category, language });
         }
     }
     if (wanted === 'reverse') {
-        return getReverseGame({ wordId, maxDifficulty, category });
+        return getReverseGame({ wordId, maxDifficulty, category, language });
     }
     if (wanted === 'frappe') {
-        return getFrappeGame({ wordId, maxDifficulty, category });
+        return getFrappeGame({ wordId, maxDifficulty, category, language });
     }
-    return getAcquisitionGame(wordId, { maxDifficulty, category });
+    return getAcquisitionGame(wordId, { maxDifficulty, category, language });
 }
 
-async function drawWord({ wordId = null, maxDifficulty = null, category = null } = {}) {
+async function drawWord({ wordId = null, maxDifficulty = null, category = null, language = 'fr' } = {}) {
     let word = null;
     if (Number.isInteger(wordId)) {
         word = await queryOne('SELECT id, text, long_definition, short_definition, difficulty FROM word WHERE id = $1', [
@@ -279,36 +297,39 @@ async function drawWord({ wordId = null, maxDifficulty = null, category = null }
     if (!word && (Number.isInteger(maxDifficulty) || typeof category === 'string')) {
         word = await queryOne(
             `SELECT id, text, long_definition, short_definition, difficulty FROM word
-            WHERE ($1::int IS NULL OR difficulty <= $1)
+            WHERE language = $3
+            AND ($1::int IS NULL OR difficulty <= $1)
             AND ($2::text IS NULL OR EXISTS (
                 SELECT 1 FROM word_category wc
                 JOIN category c ON c.id = wc.category_id
                 WHERE wc.word_id = word.id AND c.name = $2
             ))
             ORDER BY random() LIMIT 1;`,
-            [Number.isInteger(maxDifficulty) ? maxDifficulty : null, typeof category === 'string' ? category : null]
+            [Number.isInteger(maxDifficulty) ? maxDifficulty : null, typeof category === 'string' ? category : null, language]
         );
     }
     if (!word) {
         word = await queryOne(
             `SELECT id, text, long_definition, short_definition, difficulty FROM word
-            ORDER BY random() LIMIT 1;`
+            WHERE language = $1
+            ORDER BY random() LIMIT 1;`,
+            [language]
         );
     }
     return word ?? null;
 }
 
-async function drawDistractorDefinitions(word) {
+async function drawDistractorDefinitions(word, language = 'fr') {
     return queryMany(
         `SELECT id, text, short_definition FROM word
-        WHERE id <> $1
+        WHERE id <> $1 AND language = $3
         ORDER BY long_definition <-> $2
         LIMIT 3;`,
-        [word.id, word.long_definition]
+        [word.id, word.long_definition, language]
     );
 }
 
-async function drawPair() {
+async function drawPair(language = 'fr') {
     const pair =
         (await queryOne(
             `SELECT w1.id AS a_id, w1.text AS a_text, w1.short_definition AS a_def, w1.difficulty AS a_difficulty,
@@ -316,7 +337,9 @@ async function drawPair() {
             FROM confusion c
             JOIN word w1 ON w1.id = c.word1_id
             JOIN word w2 ON w2.id = c.word2_id
-            ORDER BY random() LIMIT 1`
+            WHERE w1.language = $1
+            ORDER BY random() LIMIT 1`,
+            [language]
         )) ??
         (await queryOne(
             `SELECT w1.id AS a_id, w1.text AS a_text, w1.short_definition AS a_def, w1.difficulty AS a_difficulty,
@@ -324,16 +347,18 @@ async function drawPair() {
             FROM near_words n
             JOIN word w1 ON w1.id = n.word1_id
             JOIN word w2 ON w2.id = n.word2_id
-            ORDER BY random() LIMIT 1`
+            WHERE w1.language = $1
+            ORDER BY random() LIMIT 1`,
+            [language]
         ));
     if (!pair) throw new Error('Not enough word pairs in database to start a game');
     return pair;
 }
 
-export async function getAcquisitionGame(wordId = null, { maxDifficulty = null, category = null } = {}) {
-    const word = await drawWord({ wordId, maxDifficulty, category });
+export async function getAcquisitionGame(wordId = null, { maxDifficulty = null, category = null, language = 'fr' } = {}) {
+    const word = await drawWord({ wordId, maxDifficulty, category, language });
     if (!word) throw new Error('Not enough words in database to start a game');
-    const words = await drawDistractorDefinitions(word);
+    const words = await drawDistractorDefinitions(word, language);
     return {
         mode: 'identification',
         targetId: word.id,
@@ -343,10 +368,10 @@ export async function getAcquisitionGame(wordId = null, { maxDifficulty = null, 
     };
 }
 
-export async function getReverseGame({ wordId = null, maxDifficulty = null, category = null } = {}) {
-    const word = await drawWord({ wordId, maxDifficulty, category });
+export async function getReverseGame({ wordId = null, maxDifficulty = null, category = null, language = 'fr' } = {}) {
+    const word = await drawWord({ wordId, maxDifficulty, category, language });
     if (!word) throw new Error('Not enough words in database to start a game');
-    const words = await drawDistractorDefinitions(word);
+    const words = await drawDistractorDefinitions(word, language);
     return {
         mode: 'reverse',
         targetId: word.id,
@@ -359,8 +384,8 @@ export async function getReverseGame({ wordId = null, maxDifficulty = null, cate
     };
 }
 
-export async function getFrappeGame({ wordId = null, maxDifficulty = null, category = null } = {}) {
-    const word = await drawWord({ wordId, maxDifficulty, category });
+export async function getFrappeGame({ wordId = null, maxDifficulty = null, category = null, language = 'fr' } = {}) {
+    const word = await drawWord({ wordId, maxDifficulty, category, language });
     if (!word) throw new Error('Not enough words in database to start a game');
     return {
         mode: 'frappe',
@@ -374,8 +399,8 @@ export async function getFrappeGame({ wordId = null, maxDifficulty = null, categ
     };
 }
 
-export async function getFrappeContexteGame() {
-    const pair = await drawPair();
+export async function getFrappeContexteGame(language = 'fr') {
+    const pair = await drawPair(language);
     const flip = Math.random() < 0.5;
     const target = { id: flip ? pair.a_id : pair.b_id, text: flip ? pair.a_text : pair.b_text };
     const examples = await queryMany('SELECT sentence FROM example WHERE word_id = $1', [target.id]);
@@ -418,8 +443,8 @@ export function isCloseMatch(guess, answer) {
     return levenshtein(normalizeForCompare(guess), normalizeForCompare(answer)) <= 1;
 }
 
-export async function getPairingGame() {
-    const pair = await drawPair();
+export async function getPairingGame(language = 'fr') {
+    const pair = await drawPair(language);
     const flip = Math.random() < 0.5;
     const target = flip ? pair.a_id : pair.b_id;
     const other = flip ? pair.b_id : pair.a_id;
@@ -437,8 +462,8 @@ export async function getPairingGame() {
     };
 }
 
-export async function getDistinctionGame() {
-    const pair = await drawPair();
+export async function getDistinctionGame(language = 'fr') {
+    const pair = await drawPair(language);
     const flip = Math.random() < 0.5;
     const target = flip
         ? { id: pair.a_id, text: pair.a_text, difficulty: pair.a_difficulty }

@@ -4,8 +4,10 @@ import { endPool } from '../database.js';
 
 const DEFAULT_COUNT = 10;
 const MAX_COUNT = 200;
+const LANGUAGES = ['fr', 'en'];
 
 const count = Math.max(1, Math.min(MAX_COUNT, Number.parseInt(process.argv[2], 10) || DEFAULT_COUNT));
+const language = LANGUAGES.includes(process.argv[3]) ? process.argv[3] : 'fr';
 const maxWords = count * 2;
 
 function isSingleWord(text) {
@@ -13,8 +15,8 @@ function isSingleWord(text) {
 }
 
 try {
-    console.info(`Génération d'une liste de ${count} mots…`);
-    const initial = await generateWordsList(count);
+    console.info(`Génération d'une liste de ${count} mots (${language})…`);
+    const initial = await generateWordsList(count, language);
 
     const queue = initial.map(text => ({ text, cascade: false }));
     const seen = new Set();
@@ -29,14 +31,14 @@ try {
         if (seen.has(text)) continue;
         seen.add(text);
 
-        if ((await findWordId(text)) !== null) {
+        if ((await findWordId(text, language)) !== null) {
             alreadyPresent += 1;
             console.info(`= ${text} (déjà en base)`);
             continue;
         }
 
         try {
-            const word = await generateNewWord(text);
+            const word = { ...(await generateNewWord(text, language)), language };
             const result = await insertWord(word);
             if (!result.created) {
                 alreadyPresent += 1;

@@ -7,7 +7,8 @@ CREATE TABLE word (
     difficulty SMALLINT NOT NULL CHECK (difficulty BETWEEN 1 AND 5),
 
     register TEXT NOT NULL CHECK (
-        register IN ('familier', 'courant', 'soutenu', 'litteraire', 'technique')
+        (language = 'fr' AND register IN ('familier', 'courant', 'soutenu', 'litteraire', 'technique'))
+        OR (language = 'en' AND register IN ('informal', 'standard', 'formal', 'literary', 'technical'))
     ),
 
     short_definition TEXT NOT NULL,
