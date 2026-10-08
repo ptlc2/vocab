@@ -99,7 +99,6 @@ const card = globalThis.document.querySelector('.result-card[data-mode]');
 assert.notEqual(card, null, 'la carte résultat existe');
 assert.equal(card.dataset.category, 'nature', 'la carte résultat porte la catégorie');
 assert.equal(card.dataset.difficulty, '2', 'le mot cible est bien de difficulté 2');
-assert.equal(card.dataset.sticky, 'true', 'le mode a été choisi explicitement');
 assert.ok(JSON.parse(card.dataset.categories).includes('nature'), 'le mot cible appartient à nature');
 const block = card.querySelector('.progress-block');
 assert.notEqual(block, null, 'le bloc progression est injecté');

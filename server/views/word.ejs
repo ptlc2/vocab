@@ -9,7 +9,7 @@
             </span>
             <span class="badge"><%= word.register %></span>
             <%_ for (const category of word.categories) { _%>
-            <a class="badge" href="<%= base %>/words?categorie=<%= encodeURIComponent(category.name) %>"><%= category.name %></a>
+            <a class="badge" href="<%= base %>/words?category=<%= encodeURIComponent(category.name) %>"><%= category.name %></a>
             <%_ } _%>
         </div>
     </header>

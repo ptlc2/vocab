@@ -1,7 +1,6 @@
 const CORRECT_INTERVALS_MS = [8 * 3600e3, 24 * 3600e3, 3 * 86400e3, 7 * 86400e3, 30 * 86400e3];
 const WRONG_RETRY_MS = 10 * 60e3;
 const MASTERED_BOX = 4;
-const ACQUIRED_BOX = 2;
 const MAX_BAND = 5;
 const BAND_ACQUISITION_WORDS = 2;
 const PROBE_PROBABILITY = 0.25;
@@ -31,7 +30,7 @@ function sanitizeEntry(entry) {
         : [];
     return {
         text: entry.text,
-        difficulty: entry.difficulty,
+        difficulty: Number.isInteger(entry.difficulty) ? Math.min(5, Math.max(1, entry.difficulty)) : 1,
         box,
         due,
         correct: toCount(entry.correct),
@@ -79,7 +78,7 @@ export function loadState(storage, language = 'fr') {
         state.bands = sanitizeBands(parsed.bands);
         state.totals =
             typeof parsed.totals === 'object' && parsed.totals !== null
-                ? Object.fromEntries(Object.entries(parsed.totals).filter(([, count]) => Number.isInteger(count)))
+                ? Object.fromEntries(Object.entries(parsed.totals).filter(([, count]) => Number.isInteger(count) && count > 0))
                 : {};
         return state;
     } catch {
@@ -202,15 +201,16 @@ function parseCategories(raw) {
 export function buildReplayHref(round, base, state) {
     const { category = '', modeFixe = false, mode = '', replayHref = '' } = round;
     const appendTo = (href, params) => href + (href.includes('?') ? '&' : '?') + params;
-    const due = dueWords(state);
     if (category) {
         let href = `${base}/game?category=${encodeURIComponent(category)}`;
         if (modeFixe && mode) href = appendTo(href, `mode=${mode}`);
-        if (due.length > 0) return appendTo(href, `word=${due[0].id}`);
+        const dueInCategory = dueWords(state).filter(word => (word.categories ?? []).includes(category));
+        if (dueInCategory.length > 0) return appendTo(href, `word=${dueInCategory[0].id}`);
         const level = categoryLevel(state, category);
         const band = Math.random() < PROBE_PROBABILITY ? Math.min(MAX_BAND, level + 1) : level;
         return appendTo(href, `band=${band}`);
     }
+    const due = dueWords(state);
     if (due.length > 0) return appendTo(replayHref || `${base}/game`, `word=${due[0].id}`);
     return replayHref || `${base}/game`;
 }

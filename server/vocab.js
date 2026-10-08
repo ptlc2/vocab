@@ -8,7 +8,8 @@ export async function getWordsWithMeta({ q = '', category = '', page = 1, pageSi
     let wordsQuery;
     let wordsValues;
     if (q) {
-        const like = `%${q}%`;
+        const escaped = q.replace(/[%_]/g, char => `\\${char}`);
+        const like = `%${escaped}%`;
         ({ count: total } = await queryOne(
             `SELECT count(*)::int AS count FROM word
             WHERE language = $2 AND (text ILIKE $1 OR short_definition ILIKE $1)`,
@@ -312,9 +313,10 @@ export async function getGame({
 async function drawWord({ wordId = null, band = null, category = null, language = 'fr' } = {}) {
     let word = null;
     if (Number.isInteger(wordId)) {
-        word = await queryOne('SELECT id, text, long_definition, short_definition, difficulty FROM word WHERE id = $1', [
-            wordId,
-        ]);
+        word = await queryOne(
+            'SELECT id, text, long_definition, short_definition, difficulty FROM word WHERE id = $1 AND language = $2',
+            [wordId, language]
+        );
     }
     const categoryValue = typeof category === 'string' ? category : null;
     const bandValue = Number.isInteger(band) ? band : null;
@@ -417,7 +419,7 @@ async function drawPairFromTables(language, max, category) {
         FROM confusion c
         JOIN word w1 ON w1.id = c.word1_id
         JOIN word w2 ON w2.id = c.word2_id
-        WHERE w1.language = $1
+        WHERE w1.language = $1 AND w2.language = $1
         AND ($2::int IS NULL OR (w1.difficulty <= $2 AND w2.difficulty <= $2))
         AND ($3::text IS NULL OR EXISTS (
             SELECT 1 FROM word_category wc
@@ -434,7 +436,7 @@ async function drawPairFromTables(language, max, category) {
         FROM near_words n
         JOIN word w1 ON w1.id = n.word1_id
         JOIN word w2 ON w2.id = n.word2_id
-        WHERE w1.language = $1
+        WHERE w1.language = $1 AND w2.language = $1
         AND ($2::int IS NULL OR (w1.difficulty <= $2 AND w2.difficulty <= $2))
         AND ($3::text IS NULL OR EXISTS (
             SELECT 1 FROM word_category wc

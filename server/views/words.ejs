@@ -3,7 +3,7 @@
     const params = new URLSearchParams();
     params.set('page', p);
     if (q) params.set('q', q);
-    if (category) params.set('categorie', category);
+    if (category) params.set('category', category);
     return `${base}/words?${params.toString()}`;
 }; _%>
 <div class="page-head">
@@ -32,7 +32,7 @@
     <div class="chips">
         <a class="chip <%_ if (!category && !q) { _%>active<%_ } _%>" href="<%= base %>/words">Tous</a>
         <%_ for (const cat of categories) { _%>
-        <a class="chip <%_ if (category === cat.name) { _%>active<%_ } _%>" href="<%= base %>/words?categorie=<%= encodeURIComponent(cat.name) %>"
+        <a class="chip <%_ if (category === cat.name) { _%>active<%_ } _%>" href="<%= base %>/words?category=<%= encodeURIComponent(cat.name) %>"
             ><%= cat.name %> <span class="count"><%= cat.word_count %></span></a>
         <%_ } _%>
     </div>

@@ -20,6 +20,8 @@ app.locals.description =
     'Apprendre le vocabulaire français par le jeu : définitions, nuances, mots proches et confusions classiques.';
 app.locals.difficulties = Difficulties;
 app.locals.rootBase = deploymentBase;
+app.locals.cssVersion = 4;
+app.locals.jsVersion = 15;
 
 function setDefaultLocals(res) {
     if (!res.locals.language) {
@@ -36,7 +38,7 @@ app.get('/', (req, res) => {
         languages: LANGUAGES.map(lang => ({
             code: lang,
             name: LANGUAGE_NAMES[lang] ?? lang,
-            href: `${deploymentBase}/${lang}`,
+            href: `${deploymentBase}/${lang}/`,
         })),
     });
 });
@@ -170,7 +172,11 @@ router.post('/game/answer', async (req, res) => {
     const categoryTotalId = Number.parseInt(body.categorytotal, 10);
     const categoryTotal = Number.isInteger(categoryTotalId) && categoryTotalId > 0 ? categoryTotalId : null;
     const base = res.locals.base;
-    const replayHref = track ? `${base}/game?track=${track}` : `${base}/game?mode=${mode}`;
+    const replayParams = new URLSearchParams();
+    if (track) replayParams.set('track', track);
+    if (modeFixe && !track) replayParams.set('mode', mode);
+    if (category) replayParams.set('category', category);
+    const replayHref = replayParams.size > 0 ? `${base}/game?${replayParams}` : `${base}/game`;
 
     if (mode === 'frappe' || mode === 'frappe-contexte') {
         const targetId = Number.parseInt(body.target, 10);
@@ -180,7 +186,7 @@ router.post('/game/answer', async (req, res) => {
             return;
         }
         const target = await Vocab.getWordById(targetId);
-        if (!target) {
+        if (!target || target.language !== res.locals.language) {
             res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
             return;
         }
@@ -220,7 +226,14 @@ router.post('/game/answer', async (req, res) => {
         Number.isInteger(otherId) ? Vocab.getWordById(otherId) : null,
     ]);
     const [target, choice, other] = words;
-    if (!target || !choice) {
+    const language = res.locals.language;
+    if (
+        !target ||
+        !choice ||
+        target.language !== language ||
+        choice.language !== language ||
+        (other !== null && other !== undefined && other.language !== language)
+    ) {
         res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
         return;
     }
@@ -255,7 +268,7 @@ app.use(
     (req, res, next) => {
         const lang = String(req.params.lang ?? '').toLowerCase();
         if (!LANGUAGES.includes(lang)) {
-            res.status(404).render('error-neutral', { root: deploymentBase });
+            res.status(404).render('error-neutral');
             return;
         }
         res.locals.language = lang;
@@ -267,7 +280,7 @@ app.use(
 
 // 404 for anything else (unknown language or path): neutral page, no language dressing
 app.use((req, res) => {
-    res.status(404).render('error-neutral', { root: deploymentBase });
+    res.status(404).render('error-neutral');
 });
 
 // Error handling
