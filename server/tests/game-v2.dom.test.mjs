@@ -34,11 +34,12 @@ function installDom(html, path) {
     return dom;
 }
 
-// Deux mots distincts de la catégorie nature, difficulté 2 (tirage réel côté serveur).
+// Deux mots distincts de la catégorie nature, difficulté 2 (tirage réel côté serveur,
+// mode identification épinglé : déterministe en catégorie et en difficulté).
 async function drawTwoNatureBand2Words() {
     const seen = new Set();
     for (let i = 0; i < 40 && seen.size < 2; i++) {
-        const html = await get('/fr/game?category=nature&band=2');
+        const html = await get('/fr/game?mode=identification&category=nature&band=2');
         const match = html.match(/name="target"\s+value="(\d+)"/);
         assert.notEqual(match, null, 'la carte de jeu expose l identifiant cible');
         seen.add(match[1]);
@@ -48,6 +49,28 @@ async function drawTwoNatureBand2Words() {
 }
 
 const [wordA, wordB] = await drawTwoNatureBand2Words();
+
+// Régression : en session de catégorie, la cible des rounds de paires (contexte) reste dans la catégorie demandée.
+for (let round = 0; round < 20; round++) {
+    const html = await get('/fr/game?mode=contexte&category=nature&band=2');
+    const match = html.match(/name="target"\s+value="(\d+)"/);
+    assert.notEqual(match, null, 'la carte contexte expose l identifiant cible');
+    const resultHtml = await post('/fr/game/answer', {
+        mode: 'contexte',
+        target: match[1],
+        choice: match[1],
+        sticky: '1',
+        category: 'nature',
+    });
+    installDom(resultHtml, '/fr/game/answer');
+    const roundCard = globalThis.document.querySelector('.result-card[data-mode]');
+    assert.notEqual(roundCard, null, 'la carte résultat contexte existe');
+    assert.ok(
+        JSON.parse(roundCard.dataset.categories).includes('nature'),
+        'la cible d un round contexte en catégorie nature appartient à nature'
+    );
+}
+ok('contexte : 20 rounds en nature, la cible reste toujours dans la catégorie demandée');
 
 // Scénario A : round juste avec catégorie, état pré-semé (A boîte 2, B boîte 1) -> acquisition attendue.
 const correctHtml = await post('/fr/game/answer', {

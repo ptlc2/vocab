@@ -475,7 +475,18 @@ async function drawPairFromTables(language, max, category, pool = null) {
     const poolClause = 'AND ($4::int[] IS NULL OR w1.id = ANY($4) OR w2.id = ANY($4))';
     const fromConfusions = await queryOne(
         `SELECT w1.id AS a_id, w1.text AS a_text, w1.short_definition AS a_def, w1.difficulty AS a_difficulty,
-                w2.id AS b_id, w2.text AS b_text, w2.short_definition AS b_def, w2.difficulty AS b_difficulty, c.nuance
+                w2.id AS b_id, w2.text AS b_text, w2.short_definition AS b_def, w2.difficulty AS b_difficulty,
+                CASE WHEN $3::text IS NULL THEN NULL ELSE EXISTS (
+                    SELECT 1 FROM word_category wca
+                    JOIN category ca ON ca.id = wca.category_id
+                    WHERE wca.word_id = w1.id AND ca.name = $3
+                ) END AS a_in_cat,
+                CASE WHEN $3::text IS NULL THEN NULL ELSE EXISTS (
+                    SELECT 1 FROM word_category wcb
+                    JOIN category cb ON cb.id = wcb.category_id
+                    WHERE wcb.word_id = w2.id AND cb.name = $3
+                ) END AS b_in_cat,
+                c.nuance
         FROM confusion c
         JOIN word w1 ON w1.id = c.word1_id
         JOIN word w2 ON w2.id = c.word2_id
@@ -493,7 +504,18 @@ async function drawPairFromTables(language, max, category, pool = null) {
     if (fromConfusions) return fromConfusions;
     const fromNearWords = await queryOne(
         `SELECT w1.id AS a_id, w1.text AS a_text, w1.short_definition AS a_def, w1.difficulty AS a_difficulty,
-                w2.id AS b_id, w2.text AS b_text, w2.short_definition AS b_def, w2.difficulty AS b_difficulty, NULL AS nuance
+                w2.id AS b_id, w2.text AS b_text, w2.short_definition AS b_def, w2.difficulty AS b_difficulty,
+                CASE WHEN $3::text IS NULL THEN NULL ELSE EXISTS (
+                    SELECT 1 FROM word_category wca
+                    JOIN category ca ON ca.id = wca.category_id
+                    WHERE wca.word_id = w1.id AND ca.name = $3
+                ) END AS a_in_cat,
+                CASE WHEN $3::text IS NULL THEN NULL ELSE EXISTS (
+                    SELECT 1 FROM word_category wcb
+                    JOIN category cb ON cb.id = wcb.category_id
+                    WHERE wcb.word_id = w2.id AND cb.name = $3
+                ) END AS b_in_cat,
+                NULL AS nuance
         FROM near_words n
         JOIN word w1 ON w1.id = n.word1_id
         JOIN word w2 ON w2.id = n.word2_id
@@ -555,11 +577,16 @@ export async function getFrappeGame({ wordId = null, band = null, category = nul
     };
 }
 
-function pairTargetFlip(pair, pool = null) {
+export function pairTargetFlip(pair, pool = null) {
     const aInPool = pool === null || pool.includes(pair.a_id);
     const bInPool = pool === null || pool.includes(pair.b_id);
-    if (aInPool && !bInPool) return false;
-    if (bInPool && !aInPool) return true;
+    if (aInPool && !bInPool) return true;
+    if (bInPool && !aInPool) return false;
+    // à égalité de pool (les deux, ou aucun) : la catégorie de la session départage
+    const aInCat = pair.a_in_cat !== false;
+    const bInCat = pair.b_in_cat !== false;
+    if (aInCat && !bInCat) return true;
+    if (bInCat && !aInCat) return false;
     return Math.random() < 0.5;
 }
 
@@ -628,7 +655,7 @@ export async function getPairingGame(language = 'fr', band = null, category = nu
 
 export async function getDistinctionGame(language = 'fr', band = null, category = null) {
     const pair = await drawPair(language, band, category);
-    const flip = Math.random() < 0.5;
+    const flip = pairTargetFlip(pair);
     const target = flip
         ? { id: pair.a_id, text: pair.a_text, difficulty: pair.a_difficulty }
         : { id: pair.b_id, text: pair.b_text, difficulty: pair.b_difficulty };
