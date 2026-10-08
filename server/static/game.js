@@ -282,9 +282,14 @@ function collectCategories(state) {
     return categories;
 }
 
+function isPlayedCategory(state, name) {
+    return Object.values(state.words).some(entry => (entry.categories ?? []).includes(name));
+}
+
 function levelLabel(state, name) {
     const bands = state.bands[name] ?? [];
-    return bands.length > 0 ? `niveau ${categoryLevel(state, name)}/${MAX_BAND}` : 'nouvelle';
+    if (bands.length > 0) return `niveau ${categoryLevel(state, name)}/${MAX_BAND}`;
+    return isPlayedCategory(state, name) ? `niveau 1/${MAX_BAND}` : 'nouvelle';
 }
 
 export function renderProgress(root, base, state, language = 'fr') {
@@ -390,9 +395,8 @@ export function renderHomeCategories(grid, state) {
     const fresh = [];
     for (const card of cards) {
         const name = card.dataset.category;
-        const bands = state.bands[name] ?? [];
         card.appendChild(el('span', 'badge level-badge', levelLabel(state, name)));
-        (bands.length > 0 ? played : fresh).push(card);
+        (isPlayedCategory(state, name) || (state.bands[name] ?? []).length > 0 ? played : fresh).push(card);
     }
     const groups = el('div', 'category-groups');
     const buildGroup = (title, list) => {

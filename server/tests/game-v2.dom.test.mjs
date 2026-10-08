@@ -149,19 +149,33 @@ assert.ok(cards.length >= 10, `au moins 10 cartes (trouvé : ${cards.length})`);
 
 const homeState = gameModule.loadState(globalThis.localStorage, 'fr');
 homeState.bands = { nature: [2] };
+homeState.words['999'] = {
+    text: 'mot témoin',
+    difficulty: 1,
+    box: 1,
+    due: Date.now() + 86400e3,
+    correct: 1,
+    wrong: 0,
+    categories: ['philosophie'],
+};
 gameModule.renderHomeCategories(grid, homeState);
 
 const groups = globalThis.document.querySelectorAll('.category-groups .category-group');
 assert.equal(groups.length, 2, 'deux groupes visuels');
 assert.equal(groups[0].querySelector('.group-title').textContent, 'Tes catégories');
 assert.equal(groups[1].querySelector('.group-title').textContent, 'À explorer');
-const mineCards = groups[0].querySelectorAll('[data-category]');
-assert.equal(mineCards.length, 1);
-assert.equal(mineCards[0].dataset.category, 'nature');
-assert.equal(mineCards[0].querySelector('.level-badge').textContent, 'niveau 2/5');
-const exploreCards = groups[1].querySelectorAll('[data-category]');
-assert.equal(exploreCards.length, cards.length - 1);
-assert.equal(exploreCards[0].querySelector('.level-badge').textContent, 'nouvelle');
-ok('accueil : cartes classées (jouées puis à explorer), badges niveau/nouvelle injectés');
+const mineCards = [...groups[0].querySelectorAll('[data-category]')];
+assert.ok(mineCards.length >= 2, `au moins nature et philosophie dans tes catégories (trouvé : ${mineCards.length})`);
+const natureCard = mineCards.find(card => card.dataset.category === 'nature');
+assert.equal(natureCard.querySelector('.level-badge').textContent, 'niveau 2/5');
+const philosophieCard = mineCards.find(card => card.dataset.category === 'philosophie');
+assert.notEqual(philosophieCard, null, 'philosophie (mot vu, pas de bande) est dans tes catégories');
+assert.equal(philosophieCard.querySelector('.level-badge').textContent, 'niveau 1/5');
+const exploreCards = [...groups[1].querySelectorAll('[data-category]')];
+assert.equal(exploreCards.length + mineCards.length, cards.length, 'toutes les cartes sont réparties');
+for (const card of exploreCards) {
+    assert.equal(card.querySelector('.level-badge').textContent, 'nouvelle');
+}
+ok('accueil : jouées (bande acquise ou mot vu) vs à explorer ; niveau X/5, niveau 1/5, nouvelle');
 
 console.info(`\nTest jsdom v2 : ${checks} vérifications ok`);
