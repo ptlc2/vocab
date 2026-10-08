@@ -21,7 +21,7 @@ app.locals.description =
 app.locals.difficulties = Difficulties;
 app.locals.rootBase = deploymentBase;
 app.locals.cssVersion = 5;
-app.locals.jsVersion = 15;
+app.locals.jsVersion = 16;
 
 function setDefaultLocals(res) {
     if (!res.locals.language) {
