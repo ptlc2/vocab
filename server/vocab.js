@@ -268,9 +268,12 @@ export async function linkWordRelations(word) {
     return linked;
 }
 
-const GAME_MODES = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage'];
+// Les modes de saisie libre (frappe, frappe-contexte) ne sont JAMAIS tirés au hasard :
+// le serveur ne connaît pas les boîtes du joueur, et taper un mot à la boîte <= 2 est prématuré.
+// Ils restent disponibles en choix explicite (?mode=) et le client les dirige vers des mots solides.
+const GAME_MODES = ['identification', 'reverse', 'contexte', 'jumelage'];
 const FAMILY_MODES = {
-    acquisition: ['identification', 'reverse', 'frappe'],
+    acquisition: ['identification', 'reverse'],
     distinction: ['contexte', 'jumelage'],
 };
 
