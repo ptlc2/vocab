@@ -141,6 +141,7 @@ router.get('/game', async (req, res) => {
         modeFixe: mode !== null,
         categorie: category,
         bande: band,
+        categorieTotal: category ? await Vocab.getCategoryTotal(category, res.locals.language) : null,
     });
 });
 
@@ -161,6 +162,8 @@ router.post('/game/answer', async (req, res) => {
     const categorie = typeof body.categorie === 'string' ? body.categorie.trim().slice(0, 60) : '';
     const bandId = Number.parseInt(body.bande, 10);
     const bande = Number.isInteger(bandId) ? Math.max(1, Math.min(5, bandId)) : null;
+    const categorieTotalId = Number.parseInt(body.categorietotal, 10);
+    const categorieTotal = Number.isInteger(categorieTotalId) && categorieTotalId > 0 ? categorieTotalId : null;
     const base = res.locals.base;
     const replayHref = famille ? `${base}/game?famille=${famille}` : `${base}/game?mode=${mode}`;
 
@@ -185,6 +188,7 @@ router.post('/game/answer', async (req, res) => {
             sentence,
             example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
             replayHref: sticky ? replayHref : `${base}/game`,
+            categorieTotal,
             sticky,
             modeFixe,
             target,
@@ -224,6 +228,7 @@ router.post('/game/answer', async (req, res) => {
         other: other ?? null,
         example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
         replayHref: sticky ? replayHref : `${base}/game`,
+        categorieTotal,
         sticky,
         modeFixe,
         target,

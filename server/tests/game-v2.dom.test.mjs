@@ -103,8 +103,11 @@ assert.equal(card.dataset.sticky, 'true', 'le mode a été choisi explicitement'
 assert.ok(JSON.parse(card.dataset.categories).includes('nature'), 'le mot cible appartient à nature');
 const block = card.querySelector('.progress-block');
 assert.notEqual(block, null, 'le bloc progression est injecté');
-assert.equal(block.querySelector('.progress-line').textContent, 'Score 4 · Série 4 (record 4) · catégorie nature · niveau 2/5');
-ok('bloc progression : score, série, record + catégorie et niveau dérivé');
+assert.match(
+    block.querySelector('.progress-line').textContent,
+    /Score 4 · Série 4 \(record 4\) · catégorie nature · (en route|\d+ %)/
+);
+ok('bloc progression : score, série, record + catégorie et pourcentage');
 
 const celebration = block.querySelector('.progress-line.celebration');
 assert.notEqual(celebration, null, 'la célébration d acquisition est affichée');
@@ -195,15 +198,15 @@ assert.equal(groups[1].querySelector('.group-title').textContent, 'À explorer')
 const mineCards = [...groups[0].querySelectorAll('[data-category]')];
 assert.ok(mineCards.length >= 2, `au moins nature et philosophie dans tes catégories (trouvé : ${mineCards.length})`);
 const natureCard = mineCards.find(card => card.dataset.category === 'nature');
-assert.equal(natureCard.querySelector('.level-badge').textContent, 'niveau 2/5');
+assert.match(natureCard.querySelector('.level-badge').textContent, /\d+ %/);
 const philosophieCard = mineCards.find(card => card.dataset.category === 'philosophie');
 assert.notEqual(philosophieCard, null, 'philosophie (mot vu, pas de bande) est dans tes catégories');
-assert.equal(philosophieCard.querySelector('.level-badge').textContent, 'niveau 1/5');
+assert.match(philosophieCard.querySelector('.level-badge').textContent, /^(0 %|\d+ %)$/);
 const exploreCards = [...groups[1].querySelectorAll('[data-category]')];
 assert.equal(exploreCards.length + mineCards.length, cards.length, 'toutes les cartes sont réparties');
 for (const card of exploreCards) {
     assert.equal(card.querySelector('.level-badge').textContent, 'nouvelle');
 }
-ok('accueil : jouées (bande acquise ou mot vu) vs à explorer ; niveau X/5, niveau 1/5, nouvelle');
+ok('accueil : jouées (bande acquise ou mot vu) vs à explorer ; pourcentage, 0 %, nouvelle');
 
 console.info(`\nTest jsdom v2 : ${checks} vérifications ok`);

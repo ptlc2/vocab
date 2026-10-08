@@ -29,8 +29,13 @@ function storageWith(data) {
 
 // --- newState / storageKey -------------------------------------------------
 
-assert.deepEqual(newState(), { words: {}, session: { rounds: 0, score: 0, streak: 0, best: 0 }, bands: {} });
-ok('newState : forme v2 (words, session sans palier, bands)');
+assert.deepEqual(newState(), {
+    words: {},
+    session: { rounds: 0, score: 0, streak: 0, best: 0 },
+    bands: {},
+    totals: {},
+});
+ok('newState : forme v2 (words, session sans palier, bands, totals)');
 
 assert.equal(storageKey('fr'), 'vocab:progress:v2:fr');
 assert.equal(storageKey('en'), 'vocab:progress:v2:en');

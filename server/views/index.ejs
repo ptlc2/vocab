@@ -19,6 +19,7 @@
         <a
             class="category-card"
             data-category="<%= category.name %>"
+            data-total="<%= category.word_count %>"
             href="<%= base %>/game?categorie=<%= encodeURIComponent(category.name) %>"
         >
             <span class="category-name"><%= category.name %></span>

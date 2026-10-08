@@ -65,6 +65,18 @@ export async function getCategoriesWithCounts(language = 'fr') {
     );
 }
 
+export async function getCategoryTotal(name, language = 'fr') {
+    const row = await queryOne(
+        `SELECT count(*)::int AS total
+        FROM word w
+        JOIN word_category wc ON wc.word_id = w.id
+        JOIN category c ON c.id = wc.category_id
+        WHERE w.language = $2 AND c.name = $1`,
+        [name, language]
+    );
+    return row ? row.total : 0;
+}
+
 export async function getPlayableCategories(language = 'fr') {
     return queryMany(
         `SELECT c.name, count(wc.word_id)::int AS word_count
@@ -310,29 +322,53 @@ async function drawWord({ wordId = null, band = null, category = null, language 
     }
     const categoryValue = typeof category === 'string' ? category : null;
     const bandValue = Number.isInteger(band) ? band : null;
-    if (!word && bandValue !== null) {
-        if (categoryValue !== null) {
+    if (!word && bandValue !== null && categoryValue !== null) {
+        word = await queryOne(
+            `SELECT id, text, long_definition, short_definition, difficulty FROM word
+            WHERE language = $2 AND difficulty = $1
+            AND EXISTS (
+                SELECT 1 FROM word_category wc
+                JOIN category c ON c.id = wc.category_id
+                WHERE wc.word_id = word.id AND c.name = $3
+            )
+            ORDER BY random() LIMIT 1;`,
+            [bandValue, language, categoryValue]
+        );
+        if (!word) {
             word = await queryOne(
                 `SELECT id, text, long_definition, short_definition, difficulty FROM word
-                WHERE language = $2 AND difficulty = $1
+                WHERE language = $2 AND difficulty <= $1
                 AND EXISTS (
                     SELECT 1 FROM word_category wc
                     JOIN category c ON c.id = wc.category_id
                     WHERE wc.word_id = word.id AND c.name = $3
                 )
-                ORDER BY random() LIMIT 1;`,
+                ORDER BY difficulty DESC, random() LIMIT 1;`,
                 [bandValue, language, categoryValue]
             );
         }
         if (!word) {
-            // Complément hors catégorie : la bande prime, la catégorie est invisible pour le joueur
             word = await queryOne(
                 `SELECT id, text, long_definition, short_definition, difficulty FROM word
-                WHERE language = $2 AND difficulty = $1
-                ORDER BY random() LIMIT 1;`,
-                [bandValue, language]
+                WHERE language = $2
+                AND EXISTS (
+                    SELECT 1 FROM word_category wc
+                    JOIN category c ON c.id = wc.category_id
+                    WHERE wc.word_id = word.id AND c.name = $3
+                )
+                ORDER BY difficulty ASC, random() LIMIT 1;`,
+                [language, categoryValue]
             );
         }
+    }
+    if (!word && bandValue !== null) {
+        // Complément hors catégorie, en tout dernier recours : la bande prime
+        word = await queryOne(
+            `SELECT id, text, long_definition, short_definition, difficulty FROM word
+            WHERE language = $2 AND difficulty = $1
+            ORDER BY random() LIMIT 1;`,
+            [bandValue, language]
+        );
     }
     if (!word && categoryValue !== null) {
         word = await queryOne(

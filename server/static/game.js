@@ -1,6 +1,7 @@
 const CORRECT_INTERVALS_MS = [8 * 3600e3, 24 * 3600e3, 3 * 86400e3, 7 * 86400e3, 30 * 86400e3];
 const WRONG_RETRY_MS = 10 * 60e3;
 const MASTERED_BOX = 4;
+const ACQUIRED_BOX = 2;
 const MAX_BAND = 5;
 const BAND_ACQUISITION_WORDS = 2;
 const PROBE_PROBABILITY = 0.25;
@@ -10,6 +11,7 @@ export function newState() {
         words: {},
         session: { rounds: 0, score: 0, streak: 0, best: 0 },
         bands: {},
+        totals: {},
     };
 }
 
@@ -75,6 +77,10 @@ export function loadState(storage, language = 'fr') {
         );
         state.session = sanitizeSession(state.session);
         state.bands = sanitizeBands(parsed.bands);
+        state.totals =
+            typeof parsed.totals === 'object' && parsed.totals !== null
+                ? Object.fromEntries(Object.entries(parsed.totals).filter(([, count]) => Number.isInteger(count)))
+                : {};
         return state;
     } catch {
         return newState();
@@ -220,9 +226,11 @@ export function renderResultCard(card, base, state) {
     const block = el('div', 'progress-block');
     const session = state.session;
     const categorie = card.dataset.categorie || '';
+    const categorieTotal = card.dataset.categorieTotal;
+    if (categorie && categorieTotal) recordTotal(state, categorie, categorieTotal);
     let headline = `Score ${session.score} · Série ${session.streak} (record ${session.best})`;
     if (categorie) {
-        headline += ` · catégorie ${categorie} · niveau ${categoryLevel(state, categorie)}/${MAX_BAND}`;
+        headline += ` · catégorie ${categorie} · ${levelLabel(state, categorie, categorieTotal)}`;
     }
     block.appendChild(el('p', 'progress-line', headline));
     for (const acquisition of acquisitions) {
@@ -259,10 +267,12 @@ export function renderGameCard(card, base, state) {
     const session = state.session;
     const c = counts(state);
     const categorie = card.querySelector('input[name="categorie"]')?.value ?? '';
+    const categorieTotal = card.querySelector('input[name="categorietotal"]')?.value;
+    if (categorie && categorieTotal) recordTotal(state, categorie, categorieTotal);
     const line = el('p', 'game-stats');
     let stats = `Série ${session.streak}`;
     if (categorie) {
-        stats += ` · catégorie ${categorie} · niveau ${categoryLevel(state, categorie)}/${MAX_BAND}`;
+        stats += ` · catégorie ${categorie} · ${levelLabel(state, categorie, categorieTotal)}`;
     }
     line.appendChild(document.createTextNode(`${stats} · `));
     line.appendChild(el('a', null, `${c.due} à revoir`, `${base}/progress`));
@@ -284,6 +294,21 @@ function collectCategories(state) {
 
 function isPlayedCategory(state, name) {
     return Object.values(state.words).some(entry => (entry.categories ?? []).includes(name));
+}
+
+export function retainedCount(state, name) {
+    return Object.values(state.words).filter(entry => (entry.categories ?? []).includes(name) && entry.box >= ACQUIRED_BOX)
+        .length;
+}
+
+export function categoryPercent(state, name, total) {
+    if (!Number.isInteger(total) || total <= 0) return null;
+    return Math.round((100 * retainedCount(state, name)) / total);
+}
+
+function recordTotal(state, name, total) {
+    const count = Number.parseInt(total, 10);
+    if (Number.isInteger(count) && count > 0) state.totals[name] = count;
 }
 
 const FALLBACK_DIFFICULTIES = {
@@ -313,10 +338,14 @@ export function difficultyInfo(level) {
     return difficultiesCache[level] ?? FALLBACK_DIFFICULTIES[level] ?? { name: `niveau ${level}`, color: 'var(--muted)' };
 }
 
-function levelLabel(state, name) {
-    const bands = state.bands[name] ?? [];
-    if (bands.length > 0) return `niveau ${categoryLevel(state, name)}/${MAX_BAND}`;
-    return isPlayedCategory(state, name) ? `niveau 1/${MAX_BAND}` : 'nouvelle';
+function levelLabel(state, name, total) {
+    if (!isPlayedCategory(state, name) && (state.bands[name] ?? []).length === 0) return 'nouvelle';
+    const parsed = Number.parseInt(total, 10);
+    const percent =
+        Number.isInteger(parsed) && parsed > 0
+            ? categoryPercent(state, name, parsed)
+            : categoryPercent(state, name, state.totals[name]);
+    return percent === null ? 'en route' : `${percent} %`;
 }
 
 export function renderProgress(root, base, state, language = 'fr') {
@@ -358,7 +387,13 @@ export function renderProgress(root, base, state, language = 'fr') {
         for (const category of categories) {
             const item = el('div', 'category-card');
             item.appendChild(el('p', 'category-name', category.name));
-            item.appendChild(el('p', 'category-progress', levelLabel(state, category.name)));
+            const total = state.totals[category.name];
+            const retained = retainedCount(state, category.name);
+            const detail =
+                Number.isInteger(total) && total > 0
+                    ? `${levelLabel(state, category.name, total)} · ${retained} retenus sur ${total}`
+                    : `${retained} retenus`;
+            item.appendChild(el('p', 'category-progress', detail));
             const chips = el('div', 'chips');
             for (const word of category.words) {
                 chips.appendChild(el('a', 'chip', word.text, `${base}/words/${encodeURIComponent(word.text)}`));
@@ -403,7 +438,7 @@ export function renderProgress(root, base, state, language = 'fr') {
                 el(
                     'span',
                     'progress-meta',
-                    `difficulté ${difficultyInfo(entry.difficulty).name} · boîte ${entry.box} · ${entry.correct}✓ ${entry.wrong}✗`
+                    `${difficultyInfo(entry.difficulty).name} · boîte ${entry.box} · ${entry.correct}✓ ${entry.wrong}✗`
                 )
             );
             item.querySelector('.progress-word').style.setProperty('--diff', difficultyInfo(entry.difficulty).color);
@@ -423,7 +458,8 @@ export function renderHomeCategories(grid, state) {
     const fresh = [];
     for (const card of cards) {
         const name = card.dataset.category;
-        card.appendChild(el('span', 'badge level-badge', levelLabel(state, name)));
+        recordTotal(state, name, card.dataset.total);
+        card.appendChild(el('span', 'badge level-badge', levelLabel(state, name, card.dataset.total)));
         (isPlayedCategory(state, name) || (state.bands[name] ?? []).length > 0 ? played : fresh).push(card);
     }
     const groups = el('div', 'category-groups');
@@ -452,9 +488,11 @@ if (typeof document !== 'undefined') {
     const categoryGrid = document.getElementById('category-grid');
     if (resultCard) {
         renderResultCard(resultCard, base, state);
-        saveState(storage, state, language);
     }
     if (gameCard) renderGameCard(gameCard, base, state);
     if (progressRoot) renderProgress(progressRoot, base, state, language);
     if (categoryGrid) renderHomeCategories(categoryGrid, state);
+    if (resultCard || gameCard || categoryGrid) {
+        saveState(storage, state, language);
+    }
 }

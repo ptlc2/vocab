@@ -14,6 +14,7 @@ _%>
     data-replay-href="<%= replayHref %>"
     data-categories="<%= JSON.stringify(target.categories.map(c => c.name)) %>"
     <%_ if (categorie) { _%>data-categorie="<%= categorie %>" <%_ } _%>
+    <%_ if (categorieTotal) { _%>data-categorie-total="<%= categorieTotal %>" <%_ } _%>
     <%_ if (bande) { _%>data-bande="<%= bande %>" <%_ } _%>
 >
     <%_ if (correct) { _%>
