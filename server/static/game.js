@@ -296,11 +296,6 @@ function isPlayedCategory(state, name) {
     return Object.values(state.words).some(entry => (entry.categories ?? []).includes(name));
 }
 
-export function retainedCount(state, name) {
-    return Object.values(state.words).filter(entry => (entry.categories ?? []).includes(name) && entry.box >= ACQUIRED_BOX)
-        .length;
-}
-
 export function categoryPercent(state, name, total) {
     if (!Number.isInteger(total) || total <= 0) return null;
     const boxSum = Object.values(state.words)
@@ -342,7 +337,7 @@ export function difficultyInfo(level) {
 }
 
 function levelLabel(state, name, total) {
-    if (!isPlayedCategory(state, name) && (state.bands[name] ?? []).length === 0) return 'nouvelle';
+    if (!isPlayedCategory(state, name) && (state.bands[name] ?? []).length === 0) return 'nouveau';
     const parsed = Number.parseInt(total, 10);
     const percent =
         Number.isInteger(parsed) && parsed > 0
@@ -388,21 +383,23 @@ export function renderProgress(root, base, state, language = 'fr') {
         root.appendChild(el('h2', 'progress-group-title', 'Catégories'));
         const catList = el('div', 'category-list');
         for (const category of categories) {
-            const item = el('div', 'category-card');
-            item.appendChild(el('p', 'category-name', category.name));
-            const total = state.totals[category.name];
-            const retained = retainedCount(state, category.name);
-            const detail =
-                Number.isInteger(total) && total > 0
-                    ? `${levelLabel(state, category.name, total)} · ${retained} retenus sur ${total}`
-                    : `${retained} retenus`;
-            item.appendChild(el('p', 'category-progress', detail));
+            const card = el('div', 'category-card');
+            card.appendChild(el('span', 'badge level-badge', levelLabel(state, category.name)));
+            card.appendChild(el('p', 'category-name', category.name));
             const chips = el('div', 'chips');
             for (const word of category.words) {
-                chips.appendChild(el('a', 'chip', word.text, `${base}/words/${encodeURIComponent(word.text)}`));
+                const chip = el(
+                    'a',
+                    `chip word-box-${word.box}${word.due <= Date.now() ? ' chip-due' : ''}`,
+                    word.text,
+                    `${base}/words/${encodeURIComponent(word.text)}`
+                );
+                chip.style.setProperty('--diff', difficultyInfo(word.difficulty).color);
+                chip.title = `${difficultyInfo(word.difficulty).name} · boîte ${word.box}`;
+                chips.appendChild(chip);
             }
-            item.appendChild(chips);
-            item.appendChild(
+            card.appendChild(chips);
+            card.appendChild(
                 el(
                     'a',
                     'btn btn-secondary category-play',
@@ -410,47 +407,9 @@ export function renderProgress(root, base, state, language = 'fr') {
                     `${base}/game?category=${encodeURIComponent(category.name)}`
                 )
             );
-            catList.appendChild(item);
+            catList.appendChild(card);
         }
         root.appendChild(catList);
-    }
-
-    const groups = [
-        { title: 'À revoir', entries: dueWords(state), testable: true },
-        {
-            title: 'En cours',
-            entries: Object.entries(state.words)
-                .filter(([, e]) => e.box > 0 && e.box < MASTERED_BOX)
-                .map(([id, e]) => ({ id, ...e })),
-        },
-        {
-            title: 'Maîtrisés',
-            entries: Object.entries(state.words)
-                .filter(([, e]) => e.box >= MASTERED_BOX)
-                .map(([id, e]) => ({ id, ...e })),
-        },
-    ];
-    for (const group of groups) {
-        if (group.entries.length === 0) continue;
-        root.appendChild(el('h2', 'progress-group-title', `${group.title} (${group.entries.length})`));
-        const list = el('ul', 'progress-list');
-        for (const entry of group.entries) {
-            const item = el('li', 'progress-item');
-            item.appendChild(el('a', 'progress-word', entry.text, `${base}/words/${encodeURIComponent(entry.text)}`));
-            item.appendChild(
-                el(
-                    'span',
-                    'progress-meta',
-                    `${difficultyInfo(entry.difficulty).name} · boîte ${entry.box} · ${entry.correct}✓ ${entry.wrong}✗`
-                )
-            );
-            item.querySelector('.progress-word').style.setProperty('--diff', difficultyInfo(entry.difficulty).color);
-            if (group.testable) {
-                item.appendChild(el('a', 'btn btn-secondary progress-test', 'Se tester', `${base}/game?word=${entry.id}`));
-            }
-            list.appendChild(item);
-        }
-        root.appendChild(list);
     }
 }
 

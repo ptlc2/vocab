@@ -374,10 +374,6 @@ main.container {
     font-size: 0.85rem;
 }
 
-.category-card .badge {
-    align-self: flex-start;
-}
-
 .progress-line.celebration {
     color: var(--ok);
     font-weight: 600;
@@ -1010,60 +1006,6 @@ a.badge:hover {
     border-bottom: 1px solid var(--border);
 }
 
-.progress-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.progress-item {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    padding: 10px 14px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-}
-
-.progress-word {
-    font-family: var(--font-serif);
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text);
-}
-
-.progress-word::before {
-    content: '';
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 8px;
-    vertical-align: middle;
-    background: var(--diff, var(--muted));
-}
-
-.progress-word:hover {
-    text-decoration: underline;
-}
-
-.progress-meta {
-    color: var(--muted);
-    font-size: 0.8rem;
-}
-
-.progress-test {
-    padding: 6px 14px;
-    font-size: 0.85rem;
-    margin-left: auto;
-}
-
 .category-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -1074,10 +1016,17 @@ a.badge:hover {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 14px 16px;
+    padding: 30px 16px 14px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+    position: relative;
+}
+
+.category-card .level-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
 }
 
 .category-card .category-name {
@@ -1091,16 +1040,47 @@ a.badge:hover {
     opacity: 0.75;
 }
 
-.category-card .category-progress {
-    color: var(--muted);
-    font-size: 0.85rem;
-    margin: 0;
-}
-
 .category-card .category-play {
     align-self: flex-start;
     padding: 6px 14px;
     font-size: 0.85rem;
+}
+
+/* Mots d'une catégorie : bordure graduelle selon la boîte, couleur = difficulté */
+.category-list .chip::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    background: var(--diff, var(--muted));
+}
+
+.chip.word-box-0 {
+    border-style: dotted;
+}
+
+.chip.word-box-1,
+.chip.word-box-2 {
+    border-style: dashed;
+}
+
+.chip.word-box-3,
+.chip.word-box-4 {
+    border-style: solid;
+    border-color: var(--border-strong);
+}
+
+.chip.word-box-5 {
+    border-style: solid;
+    border-color: var(--text);
+    font-weight: 600;
+}
+
+.chip.chip-due {
+    border-color: var(--accent);
 }
 
 /* ------------------------------------------------------------------ pagination */

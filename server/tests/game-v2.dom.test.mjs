@@ -205,8 +205,8 @@ assert.match(philosophieCard.querySelector('.level-badge').textContent, /^(0 %|\
 const exploreCards = [...groups[1].querySelectorAll('[data-category]')];
 assert.equal(exploreCards.length + mineCards.length, cards.length, 'toutes les cartes sont réparties');
 for (const card of exploreCards) {
-    assert.equal(card.querySelector('.level-badge').textContent, 'nouvelle');
+    assert.equal(card.querySelector('.level-badge').textContent, 'nouveau');
 }
-ok('accueil : jouées (bande acquise ou mot vu) vs à explorer ; pourcentage, 0 %, nouvelle');
+ok('accueil : jouées (bande acquise ou mot vu) vs à explorer ; pourcentage, 0 %, nouveau');
 
 console.info(`\nTest jsdom v2 : ${checks} vérifications ok`);

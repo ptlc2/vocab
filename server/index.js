@@ -42,7 +42,7 @@ app.get('/', (req, res) => {
 });
 
 // Legacy paths without the language prefix: redirect to the default language
-const LANGLESS_PREFIXES = ['words', 'game', 'progress', 'style.css', 'game.js'];
+const LANGLESS_PREFIXES = ['words', 'game', 'progress'];
 app.use((req, res, next) => {
     const firstSegment = req.path.split('/')[1];
     if (req.method === 'GET' && LANGLESS_PREFIXES.includes(firstSegment)) {
@@ -52,14 +52,19 @@ app.use((req, res, next) => {
     next();
 });
 
-const router = Express.Router();
-
-router.use((req, res, next) => {
-    if ((req.path === '/style.css' || req.path === '/game.js') && req.query.v !== undefined) {
+// Static assets served once at the root (single URL, single cache entry);
+// the per-language copies stay mounted below for pages cached with old URLs.
+app.use((req, res, next) => {
+    const file = req.path.split('/').pop();
+    if ((file === 'style.css' || file === 'game.js') && req.query.v !== undefined) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
     next();
 });
+app.use(Express.static('static'));
+
+const router = Express.Router();
+
 router.use(Express.static('static'));
 
 // Locale middleware
