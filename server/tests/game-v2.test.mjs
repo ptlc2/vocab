@@ -260,13 +260,13 @@ function stateForReplay({ due: isDue, bands: bandList }) {
 }
 
 assert.equal(
-    buildReplayHref({ categorie: 'nature', sticky: false }, '/fr', stateForReplay({ due: true })),
+    buildReplayHref({ categorie: 'nature', sticky: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
     '/fr/game?categorie=nature&mot=7'
 );
-ok('rejouer : catégorie + mots dus -> la mémoire prime (mot=), sans mode');
+ok('rejouer : catégorie sans mode choisi -> le mode se re-randomise (pas de mode= dans l’href), mémoire d’abord');
 
 assert.equal(
-    buildReplayHref({ categorie: 'nature', sticky: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
+    buildReplayHref({ categorie: 'nature', modeFixe: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
     '/fr/game?categorie=nature&mode=identification&mot=7'
 );
 ok('rejouer : catégorie + mode choisi explicitement -> mode conservé avant le mot dû');
@@ -276,7 +276,7 @@ try {
     Math.random = () => 0.9;
     assert.equal(
         buildReplayHref(
-            { categorie: 'nature', sticky: true, mode: 'reverse' },
+            { categorie: 'nature', modeFixe: true, mode: 'reverse' },
             '/fr',
             stateForReplay({ due: false, bands: [2] })
         ),
@@ -287,7 +287,7 @@ try {
     Math.random = () => 0.1;
     assert.equal(
         buildReplayHref(
-            { categorie: 'nature', sticky: true, mode: 'reverse' },
+            { categorie: 'nature', modeFixe: true, mode: 'reverse' },
             '/fr',
             stateForReplay({ due: false, bands: [2] })
         ),

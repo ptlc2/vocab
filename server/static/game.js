@@ -194,12 +194,12 @@ function parseCategories(raw) {
 }
 
 export function buildReplayHref(round, base, state) {
-    const { categorie = '', sticky = false, mode = '', replayHref = '' } = round;
+    const { categorie = '', modeFixe = false, mode = '', replayHref = '' } = round;
     const appendTo = (href, params) => href + (href.includes('?') ? '&' : '?') + params;
     const due = dueWords(state);
     if (categorie) {
         let href = `${base}/game?categorie=${encodeURIComponent(categorie)}`;
-        if (sticky && mode) href = appendTo(href, `mode=${mode}`);
+        if (modeFixe && mode) href = appendTo(href, `mode=${mode}`);
         if (due.length > 0) return appendTo(href, `mot=${due[0].id}`);
         const level = categoryLevel(state, categorie);
         const band = Math.random() < PROBE_PROBABILITY ? Math.min(MAX_BAND, level + 1) : level;
@@ -244,7 +244,7 @@ export function renderResultCard(card, base, state) {
             buildReplayHref(
                 {
                     categorie,
-                    sticky: card.dataset.sticky === 'true',
+                    modeFixe: card.dataset.modeFixe === 'true',
                     mode: card.dataset.mode || '',
                     replayHref: card.dataset.replayHref || '',
                 },

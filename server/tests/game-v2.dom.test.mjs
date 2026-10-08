@@ -112,14 +112,42 @@ assert.equal(celebration.textContent, 'Bande 2 acquise en nature !');
 ok('célébration : bande 2 acquise en nature, visible une fois');
 
 const replay = card.querySelector('.result-actions .btn-primary');
-assert.equal(replay.getAttribute('href'), '/fr/game?categorie=nature&mode=identification&bande=3');
-ok('rejouer : href reconstruit (catégorie + mode + sonde bande 3)');
+assert.equal(replay.getAttribute('href'), '/fr/game?categorie=nature&bande=3');
+ok('rejouer : href reconstruit (catégorie + sonde bande 3, SANS mode épinglé : pas choisi explicitement)');
 
 const saved = JSON.parse(globalThis.localStorage.getItem('vocab:progress:v2:fr'));
 assert.equal(saved.words[wordB].box, 2);
 assert.equal(saved.session.score, 4);
 assert.deepEqual(saved.bands.nature, [2]);
 ok('enregistrement : le round est sauvegardé dans la clé v2 (boîte 2, bandes [2])');
+
+const explicitHtml = await post('/fr/game/answer', {
+    mode: 'identification',
+    target: wordA,
+    choice: wordA,
+    sticky: '1',
+    modefixe: '1',
+    categorie: 'nature',
+});
+installDom(explicitHtml, '/fr/game/answer');
+const explicitCard = globalThis.document.querySelector('.result-card[data-mode]');
+assert.equal(explicitCard.dataset.modeFixe, 'true', 'le drapeau mode choisi explicitement traverse la chaîne');
+const explicitState = gameModule.loadState(globalThis.localStorage, 'fr');
+explicitState.words['555'] = {
+    text: 'mot dû distinct',
+    difficulty: 2,
+    box: 0,
+    due: 1,
+    correct: 1,
+    wrong: 1,
+    categories: ['nature'],
+};
+gameModule.renderResultCard(explicitCard, '/fr', explicitState);
+assert.equal(
+    explicitCard.querySelector('.result-actions .btn-primary').getAttribute('href'),
+    '/fr/game?categorie=nature&mode=identification&mot=555'
+);
+ok('rejouer : mode choisi explicitement -> conservé dans l’href (la mémoire prime)');
 
 // Scénario B : round faux sans catégorie, stockage vierge -> pas de célébration, href serveur conservé.
 const wrongHtml = await post('/fr/game/answer', { mode: 'identification', target: wordB, choice: wordA });

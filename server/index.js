@@ -131,6 +131,7 @@ router.get('/game', async (req, res) => {
         game,
         sticky: mode !== null || family !== null || Number.isInteger(motId) || category !== '',
         famille: family,
+        modeFixe: mode !== null,
         categorie: category,
         bande: band,
     });
@@ -148,6 +149,7 @@ router.post('/game/answer', async (req, res) => {
         ? body.mode
         : 'identification';
     const sticky = body.sticky === '1';
+    const modeFixe = body.modefixe === '1';
     const famille = ['acquisition', 'distinction'].includes(body.famille) ? body.famille : null;
     const categorie = typeof body.categorie === 'string' ? body.categorie.trim().slice(0, 60) : '';
     const bandId = Number.parseInt(body.bande, 10);
@@ -177,6 +179,7 @@ router.post('/game/answer', async (req, res) => {
             example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
             replayHref: sticky ? replayHref : `${base}/game`,
             sticky,
+            modeFixe,
             target,
             choice: null,
             categorie,
@@ -215,6 +218,7 @@ router.post('/game/answer', async (req, res) => {
         example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
         replayHref: sticky ? replayHref : `${base}/game`,
         sticky,
+        modeFixe,
         target,
         choice,
         categorie,
