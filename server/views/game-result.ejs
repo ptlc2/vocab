@@ -12,6 +12,8 @@ _%>
     data-sticky="<%= sticky %>"
     data-replay-href="<%= replayHref %>"
     data-categories="<%= JSON.stringify(target.categories.map(c => c.name)) %>"
+    <%_ if (categorie) { _%>data-categorie="<%= categorie %>" <%_ } _%>
+    <%_ if (bande) { _%>data-bande="<%= bande %>" <%_ } _%>
 >
     <%_ if (correct) { _%>
     <p class="verdict correct">Bien vu !</p>

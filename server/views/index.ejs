@@ -2,11 +2,35 @@
 <section class="hero">
     <p class="eyebrow">Jeu lexical solo</p>
     <h1>Apprendre le vocabulaire,<br />avec justesse et nuance.</h1>
-    <p class="lede">Devine le mot derrière sa définition, explore les nuances entre mots proches, et approprie-toi un lexique plus riche, définition par définition.</p>
-    <div class="actions">
-        <a class="btn btn-primary" href="<%= base %>/game">Jouer</a>
-        <a class="btn btn-secondary" href="<%= base %>/words">Parcourir les mots</a>
+    <p class="lede">Choisis un terrain de jeu, devine le mot derrière sa définition, et approprie-toi un lexique plus riche, définition par définition.</p>
+    <div class="stat-row">
+        <span class="stat"><b><%= stats.words %></b> mots</span>
+        <span class="stat"><b><%= stats.categories %></b> catégories</span>
+        <span class="stat"><b><%= stats.examples %></b> exemples</span>
+        <span class="stat"><b><%= stats.confusions %></b> nuances</span>
     </div>
+</section>
+<section class="home-categories">
+    <h2 class="section-title">Catégories</h2>
+    <%_ if (playableCategories.length > 0) { _%>
+    <p class="section-sub">Deux mots d'une même bande, bien ancrés, et la bande est à toi : le niveau de chaque catégorie monte ainsi, de 1 à 5.</p>
+    <div class="category-list" id="category-grid">
+        <%_ for (const category of playableCategories) { _%>
+        <a
+            class="category-card"
+            data-category="<%= category.name %>"
+            href="<%= base %>/game?categorie=<%= encodeURIComponent(category.name) %>"
+        >
+            <span class="category-name"><%= category.name %></span>
+            <span class="category-count"><%= category.word_count %> mots</span>
+        </a>
+        <%_ } _%>
+    </div>
+    <%_ } else { _%>
+    <p class="section-sub">Pas encore assez de mots pour des catégories : joue en surprise, elles arriveront.</p>
+    <%_ } _%>
+</section>
+<section class="hero hero-modes">
     <div class="mode-row">
         <span class="mode-label">Deux familles :</span>
         <a class="chip" href="<%= base %>/game?famille=acquisition">Acquisition lexicale</a>
@@ -21,11 +45,8 @@
         <a class="chip" href="<%= base %>/game?mode=jumelage">Mot contre son confondu</a>
         <a class="chip" href="<%= base %>/game?mode=frappe-contexte">Écrire le mot juste (costaud)</a>
     </div>
-    <div class="stat-row">
-        <span class="stat"><b><%= stats.words %></b> mots</span>
-        <span class="stat"><b><%= stats.categories %></b> catégories</span>
-        <span class="stat"><b><%= stats.examples %></b> exemples</span>
-        <span class="stat"><b><%= stats.confusions %></b> nuances</span>
+    <div class="actions home-actions">
+        <a class="btn btn-primary" href="<%= base %>/game">Jouer en surprise</a>
     </div>
 </section>
 <%- include('partials/footer') %>

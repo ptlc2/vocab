@@ -31,6 +31,12 @@
     <p class="game-definition"><%= game.definition %></p>
     <input type="hidden" name="target" value="<%= game.targetId %>" />
     <input type="hidden" name="mode" value="<%= game.mode %>" />
+    <%_ if (categorie) { _%>
+    <input type="hidden" name="categorie" value="<%= categorie %>" />
+    <%_ } _%>
+    <%_ if (bande) { _%>
+    <input type="hidden" name="bande" value="<%= bande %>" />
+    <%_ } _%>
     <%_ if (sticky) { _%>
     <input type="hidden" name="sticky" value="1" />
     <%_ if (famille) { _%>

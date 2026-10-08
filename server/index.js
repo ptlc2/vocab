@@ -32,7 +32,11 @@ const LANGUAGE_NAMES = { fr: 'Français', en: 'English' };
 app.get('/', (req, res) => {
     res.render('choose', {
         base: `${deploymentBase}/${LANGUAGES[0]}`,
-        languages: LANGUAGES.map(lang => ({ code: lang, name: LANGUAGE_NAMES[lang] ?? lang, href: `${deploymentBase}/${lang}` })),
+        languages: LANGUAGES.map(lang => ({
+            code: lang,
+            name: LANGUAGE_NAMES[lang] ?? lang,
+            href: `${deploymentBase}/${lang}`,
+        })),
     });
 });
 
@@ -73,7 +77,8 @@ function firstValidLocale(langs) {
 // Homepage route
 router.get('/', async (req, res) => {
     const stats = await Vocab.getStats(res.locals.language);
-    res.render('index', { stats });
+    const playableCategories = await Vocab.getPlayableCategories(res.locals.language);
+    res.render('index', { stats, playableCategories });
 });
 
 // Word list route
@@ -107,21 +112,28 @@ router.get('/words/:word', async (req, res) => {
 // Game route
 router.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.mot, 10);
-    const maxId = Number.parseInt(req.query.max, 10);
+    const bandId = Number.parseInt(req.query.bande, 10);
     const mode = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage', 'frappe-contexte'].includes(req.query.mode)
         ? req.query.mode
         : null;
     const family = ['acquisition', 'distinction'].includes(req.query.famille) ? req.query.famille : null;
     const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
+    const band = Number.isInteger(bandId) ? Math.max(1, Math.min(5, bandId)) : null;
     const game = await Vocab.getGame({
         wordId: Number.isInteger(motId) ? motId : null,
         mode,
         family,
-        maxDifficulty: Number.isInteger(maxId) ? Math.max(1, Math.min(5, maxId)) : null,
+        band,
         category: category || null,
         language: res.locals.language,
     });
-    res.render('game', { game, sticky: mode !== null || family !== null || Number.isInteger(motId), famille: family });
+    res.render('game', {
+        game,
+        sticky: mode !== null || family !== null || Number.isInteger(motId) || category !== '',
+        famille: family,
+        categorie: category,
+        bande: band,
+    });
 });
 
 // Progress route
@@ -137,6 +149,9 @@ router.post('/game/answer', async (req, res) => {
         : 'identification';
     const sticky = body.sticky === '1';
     const famille = ['acquisition', 'distinction'].includes(body.famille) ? body.famille : null;
+    const categorie = typeof body.categorie === 'string' ? body.categorie.trim().slice(0, 60) : '';
+    const bandId = Number.parseInt(body.bande, 10);
+    const bande = Number.isInteger(bandId) ? Math.max(1, Math.min(5, bandId)) : null;
     const base = res.locals.base;
     const replayHref = famille ? `${base}/game?famille=${famille}` : `${base}/game?mode=${mode}`;
 
@@ -164,6 +179,8 @@ router.post('/game/answer', async (req, res) => {
             sticky,
             target,
             choice: null,
+            categorie,
+            bande,
         });
         return;
     }
@@ -200,6 +217,8 @@ router.post('/game/answer', async (req, res) => {
         sticky,
         target,
         choice,
+        categorie,
+        bande,
     });
 });
 
@@ -215,8 +234,7 @@ app.use(
     (req, res, next) => {
         const lang = String(req.params.lang ?? '').toLowerCase();
         if (!LANGUAGES.includes(lang)) {
-            setDefaultLocals(res);
-            res.status(404).render('error', { code: 404, message: 'Page non trouvée' });
+            res.status(404).render('error-neutral', { root: deploymentBase });
             return;
         }
         res.locals.language = lang;
@@ -226,10 +244,9 @@ app.use(
     router
 );
 
-// 404 for anything else (unknown language or path)
+// 404 for anything else (unknown language or path): neutral page, no language dressing
 app.use((req, res) => {
-    setDefaultLocals(res);
-    res.status(404).render('error', { code: 404, message: 'Page non trouvée' });
+    res.status(404).render('error-neutral', { root: deploymentBase });
 });
 
 // Error handling

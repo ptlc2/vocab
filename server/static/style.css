@@ -317,6 +317,72 @@ main.container {
     font-size: 1rem;
 }
 
+/* ------------------------------------------------------------------ accueil : catégories */
+
+.hero-modes {
+    padding: 8px 0 0;
+    margin-top: 40px;
+    border-top: 1px solid var(--border);
+}
+
+.home-actions {
+    margin-top: 32px;
+}
+
+.home-categories {
+    margin-top: 44px;
+    text-align: center;
+}
+
+.home-categories .section-title {
+    font-family: var(--font-serif);
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+}
+
+.home-categories .section-sub {
+    color: var(--muted);
+    font-size: 0.92rem;
+    max-width: 40em;
+    margin: 0 auto 20px;
+}
+
+.home-categories .category-list {
+    text-align: left;
+}
+
+.category-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+}
+
+.group-title {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin: 0 0 12px;
+    text-align: center;
+}
+
+.category-count {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.category-card .badge {
+    align-self: flex-start;
+}
+
+.progress-line.celebration {
+    color: var(--ok);
+    font-weight: 600;
+}
+
 /* ------------------------------------------------------------------ titres de page */
 
 .page-head {
@@ -1117,7 +1183,9 @@ a.badge:hover {
     background: var(--surface);
     color: var(--text);
     box-shadow: var(--shadow);
-    transition: border-color 0.15s ease, transform 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        transform 0.15s ease;
 }
 
 .choose-lang:hover {

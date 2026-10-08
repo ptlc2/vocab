@@ -51,14 +51,17 @@ Le jeu s’organise autour d’une gradation lexicale, où chaque palier introdu
 
 La progression s’effectue naturellement, en fonction des réussites du joueur.
 
-### Paliers et tirage
+### Bandes et catégories
 
-La progression (locale au navigateur, localStorage) débloque les paliers : cinq bonnes réponses
-sur des mots du niveau exact du palier courant ouvrent le palier suivant. Le lien *Rejouer*
-porte alors le palier (`?max=N`) : le tirage reste sous le plafond débloqué et donne la moitié
-de ses chances au niveau-frontière, pour que chaque palier se débloque à un rythme comparable.
-Les modes de distinction sémantique respectent le plafond eux aussi. Une navigation directe
-vers `/game` tire sur toute la base, librement.
+La progression (locale au navigateur, localStorage, une clé par langue) vit par catégorie.
+Chaque bonne réponse renforce le mot (boîtes : 8 h, 1 j, 3 j, 7 j, 30 j ; une erreur renvoie
+le mot à la boîte 0, à revoir dans 10 minutes). Quand deux mots d'une même catégorie, d'une
+même bande (difficulté 1 à 5), atteignent la boîte 2, la bande est acquise : le niveau de la
+catégorie est sa plus haute bande, sans régression possible. L'accueil montre les catégories
+et leurs niveaux ; le lien *Rejouer* d'une partie avec catégorie rebat sur la bande du niveau
+(une chance sur quatre d'explorer la bande suivante), la mémoire primant : un mot à revoir
+repart avant tout. Une catégorie sans mot de la bande demandée est complétée discrètement
+hors catégorie, le tirage reste juste.
 
 ---
 
@@ -81,7 +84,7 @@ L’option `--niveau` (`--level` en alias) accepte un niveau unique (`4`) ou une
 
 Chaque mot correctement assimilé peut être intégré à une **collection personnelle**.
 
-Ces collections sont organisées par **catégories thématiques ou stylistiques** (émotions, abstractions, vocabulaire littéraire, etc.) et se débloquent progressivement au fil des réussites. Elles servent à la fois de :
+Ces collections sont organisées par **catégories thématiques ou stylistiques** (émotions, abstractions, vocabulaire littéraire, etc.) et montent en niveau au fil des réussites. Elles servent à la fois de :
 
 - trace visible de la progression,
 - outil de révision ciblée,
