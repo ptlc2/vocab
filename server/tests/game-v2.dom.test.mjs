@@ -38,7 +38,7 @@ function installDom(html, path) {
 async function drawTwoNatureBand2Words() {
     const seen = new Set();
     for (let i = 0; i < 40 && seen.size < 2; i++) {
-        const html = await get('/fr/game?categorie=nature&bande=2');
+        const html = await get('/fr/game?category=nature&band=2');
         const match = html.match(/name="target"\s+value="(\d+)"/);
         assert.notEqual(match, null, 'la carte de jeu expose l identifiant cible');
         seen.add(match[1]);
@@ -55,7 +55,7 @@ const correctHtml = await post('/fr/game/answer', {
     target: wordB,
     choice: wordB,
     sticky: '1',
-    categorie: 'nature',
+    category: 'nature',
 });
 
 const seed = {
@@ -97,7 +97,7 @@ try {
 
 const card = globalThis.document.querySelector('.result-card[data-mode]');
 assert.notEqual(card, null, 'la carte résultat existe');
-assert.equal(card.dataset.categorie, 'nature', 'la carte résultat porte la catégorie');
+assert.equal(card.dataset.category, 'nature', 'la carte résultat porte la catégorie');
 assert.equal(card.dataset.difficulty, '2', 'le mot cible est bien de difficulté 2');
 assert.equal(card.dataset.sticky, 'true', 'le mode a été choisi explicitement');
 assert.ok(JSON.parse(card.dataset.categories).includes('nature'), 'le mot cible appartient à nature');
@@ -115,7 +115,7 @@ assert.equal(celebration.textContent, 'Bande 2 acquise en nature !');
 ok('célébration : bande 2 acquise en nature, visible une fois');
 
 const replay = card.querySelector('.result-actions .btn-primary');
-assert.equal(replay.getAttribute('href'), '/fr/game?categorie=nature&bande=3');
+assert.equal(replay.getAttribute('href'), '/fr/game?category=nature&band=3');
 ok('rejouer : href reconstruit (catégorie + sonde bande 3, SANS mode épinglé : pas choisi explicitement)');
 
 const saved = JSON.parse(globalThis.localStorage.getItem('vocab:progress:v2:fr'));
@@ -130,7 +130,7 @@ const explicitHtml = await post('/fr/game/answer', {
     choice: wordA,
     sticky: '1',
     modefixe: '1',
-    categorie: 'nature',
+    category: 'nature',
 });
 installDom(explicitHtml, '/fr/game/answer');
 const explicitCard = globalThis.document.querySelector('.result-card[data-mode]');
@@ -148,7 +148,7 @@ explicitState.words['555'] = {
 gameModule.renderResultCard(explicitCard, '/fr', explicitState);
 assert.equal(
     explicitCard.querySelector('.result-actions .btn-primary').getAttribute('href'),
-    '/fr/game?categorie=nature&mode=identification&mot=555'
+    '/fr/game?category=nature&mode=identification&word=555'
 );
 ok('rejouer : mode choisi explicitement -> conservé dans l’href (la mémoire prime)');
 

@@ -58,7 +58,7 @@ Chaque bonne réponse renforce le mot (boîtes : 8 h, 1 j, 3 j, 7 j, 30 j ; une 
 le mot à la boîte 0, à revoir dans 10 minutes). Quand deux mots d'une même catégorie, d'une
 même bande (difficulté 1 à 5), atteignent la boîte 2, la bande est acquise : le niveau de la
 catégorie est sa plus haute bande, sans régression possible. L'accueil montre les catégories
-et leurs niveaux ; le lien *Rejouer* d'une partie avec catégorie rebat sur la bande du niveau
+et leurs niveaux ; le lien _Rejouer_ d'une partie avec catégorie rebat sur la bande du niveau
 (une chance sur quatre d'explorer la bande suivante), la mémoire primant : un mot à revoir
 repart avant tout. Une catégorie sans mot de la bande demandée est complétée discrètement
 hors catégorie, le tirage reste juste.

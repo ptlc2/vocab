@@ -200,18 +200,18 @@ function parseCategories(raw) {
 }
 
 export function buildReplayHref(round, base, state) {
-    const { categorie = '', modeFixe = false, mode = '', replayHref = '' } = round;
+    const { category = '', modeFixe = false, mode = '', replayHref = '' } = round;
     const appendTo = (href, params) => href + (href.includes('?') ? '&' : '?') + params;
     const due = dueWords(state);
-    if (categorie) {
-        let href = `${base}/game?categorie=${encodeURIComponent(categorie)}`;
+    if (category) {
+        let href = `${base}/game?category=${encodeURIComponent(category)}`;
         if (modeFixe && mode) href = appendTo(href, `mode=${mode}`);
-        if (due.length > 0) return appendTo(href, `mot=${due[0].id}`);
-        const level = categoryLevel(state, categorie);
+        if (due.length > 0) return appendTo(href, `word=${due[0].id}`);
+        const level = categoryLevel(state, category);
         const band = Math.random() < PROBE_PROBABILITY ? Math.min(MAX_BAND, level + 1) : level;
-        return appendTo(href, `bande=${band}`);
+        return appendTo(href, `band=${band}`);
     }
-    if (due.length > 0) return appendTo(replayHref || `${base}/game`, `mot=${due[0].id}`);
+    if (due.length > 0) return appendTo(replayHref || `${base}/game`, `word=${due[0].id}`);
     return replayHref || `${base}/game`;
 }
 
@@ -225,12 +225,12 @@ export function renderResultCard(card, base, state) {
     });
     const block = el('div', 'progress-block');
     const session = state.session;
-    const categorie = card.dataset.categorie || '';
-    const categorieTotal = card.dataset.categorieTotal;
-    if (categorie && categorieTotal) recordTotal(state, categorie, categorieTotal);
+    const category = card.dataset.category || '';
+    const categoryTotal = card.dataset.categoryTotal;
+    if (category && categoryTotal) recordTotal(state, category, categoryTotal);
     let headline = `Score ${session.score} · Série ${session.streak} (record ${session.best})`;
-    if (categorie) {
-        headline += ` · catégorie ${categorie} · ${levelLabel(state, categorie, categorieTotal)}`;
+    if (category) {
+        headline += ` · catégorie ${category} · ${levelLabel(state, category, categoryTotal)}`;
     }
     block.appendChild(el('p', 'progress-line', headline));
     for (const acquisition of acquisitions) {
@@ -251,7 +251,7 @@ export function renderResultCard(card, base, state) {
             'href',
             buildReplayHref(
                 {
-                    categorie,
+                    category,
                     modeFixe: card.dataset.modeFixe === 'true',
                     mode: card.dataset.mode || '',
                     replayHref: card.dataset.replayHref || '',
@@ -266,13 +266,13 @@ export function renderResultCard(card, base, state) {
 export function renderGameCard(card, base, state) {
     const session = state.session;
     const c = counts(state);
-    const categorie = card.querySelector('input[name="categorie"]')?.value ?? '';
-    const categorieTotal = card.querySelector('input[name="categorietotal"]')?.value;
-    if (categorie && categorieTotal) recordTotal(state, categorie, categorieTotal);
+    const category = card.querySelector('input[name="category"]')?.value ?? '';
+    const categoryTotal = card.querySelector('input[name="categorytotal"]')?.value;
+    if (category && categoryTotal) recordTotal(state, category, categoryTotal);
     const line = el('p', 'game-stats');
     let stats = `Série ${session.streak}`;
-    if (categorie) {
-        stats += ` · catégorie ${categorie} · ${levelLabel(state, categorie, categorieTotal)}`;
+    if (category) {
+        stats += ` · catégorie ${category} · ${levelLabel(state, category, categoryTotal)}`;
     }
     line.appendChild(document.createTextNode(`${stats} · `));
     line.appendChild(el('a', null, `${c.due} à revoir`, `${base}/progress`));
@@ -303,7 +303,10 @@ export function retainedCount(state, name) {
 
 export function categoryPercent(state, name, total) {
     if (!Number.isInteger(total) || total <= 0) return null;
-    return Math.round((100 * retainedCount(state, name)) / total);
+    const boxSum = Object.values(state.words)
+        .filter(entry => (entry.categories ?? []).includes(name))
+        .reduce((sum, entry) => sum + entry.box, 0);
+    return Math.round((100 * boxSum) / (total * 5));
 }
 
 function recordTotal(state, name, total) {
@@ -404,7 +407,7 @@ export function renderProgress(root, base, state, language = 'fr') {
                     'a',
                     'btn btn-secondary category-play',
                     'Jouer cette catégorie',
-                    `${base}/game?categorie=${encodeURIComponent(category.name)}`
+                    `${base}/game?category=${encodeURIComponent(category.name)}`
                 )
             );
             catList.appendChild(item);
@@ -443,7 +446,7 @@ export function renderProgress(root, base, state, language = 'fr') {
             );
             item.querySelector('.progress-word').style.setProperty('--diff', difficultyInfo(entry.difficulty).color);
             if (group.testable) {
-                item.appendChild(el('a', 'btn btn-secondary progress-test', 'Se tester', `${base}/game?mot=${entry.id}`));
+                item.appendChild(el('a', 'btn btn-secondary progress-test', 'Se tester', `${base}/game?word=${entry.id}`));
             }
             list.appendChild(item);
         }

@@ -265,14 +265,14 @@ function stateForReplay({ due: isDue, bands: bandList }) {
 }
 
 assert.equal(
-    buildReplayHref({ categorie: 'nature', sticky: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
-    '/fr/game?categorie=nature&mot=7'
+    buildReplayHref({ category: 'nature', sticky: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
+    '/fr/game?category=nature&word=7'
 );
 ok('rejouer : catégorie sans mode choisi -> le mode se re-randomise (pas de mode= dans l’href), mémoire d’abord');
 
 assert.equal(
-    buildReplayHref({ categorie: 'nature', modeFixe: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
-    '/fr/game?categorie=nature&mode=identification&mot=7'
+    buildReplayHref({ category: 'nature', modeFixe: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
+    '/fr/game?category=nature&mode=identification&word=7'
 );
 ok('rejouer : catégorie + mode choisi explicitement -> mode conservé avant le mot dû');
 
@@ -281,35 +281,35 @@ try {
     Math.random = () => 0.9;
     assert.equal(
         buildReplayHref(
-            { categorie: 'nature', modeFixe: true, mode: 'reverse' },
+            { category: 'nature', modeFixe: true, mode: 'reverse' },
             '/fr',
             stateForReplay({ due: false, bands: [2] })
         ),
-        '/fr/game?categorie=nature&mode=reverse&bande=2'
+        '/fr/game?category=nature&mode=reverse&band=2'
     );
     ok('rejouer : catégorie niveau 2, pas de sonde (random 0.9) -> bande frontière 2');
 
     Math.random = () => 0.1;
     assert.equal(
         buildReplayHref(
-            { categorie: 'nature', modeFixe: true, mode: 'reverse' },
+            { category: 'nature', modeFixe: true, mode: 'reverse' },
             '/fr',
             stateForReplay({ due: false, bands: [2] })
         ),
-        '/fr/game?categorie=nature&mode=reverse&bande=3'
+        '/fr/game?category=nature&mode=reverse&band=3'
     );
     ok('rejouer : catégorie niveau 2, sonde (random 0.1) -> bande 3');
 
     assert.equal(
-        buildReplayHref({ categorie: 'nature' }, '/fr', stateForReplay({ due: false, bands: [2, 5] })),
-        '/fr/game?categorie=nature&bande=5'
+        buildReplayHref({ category: 'nature' }, '/fr', stateForReplay({ due: false, bands: [2, 5] })),
+        '/fr/game?category=nature&band=5'
     );
     ok('rejouer : sonde au niveau 5 -> bande clampée à 5');
 
     Math.random = () => 0.1;
     assert.equal(
-        buildReplayHref({ categorie: 'nature' }, '/fr', stateForReplay({ due: false })),
-        '/fr/game?categorie=nature&bande=2'
+        buildReplayHref({ category: 'nature' }, '/fr', stateForReplay({ due: false })),
+        '/fr/game?category=nature&band=2'
     );
     ok('rejouer : catégorie nouvelle (niveau 1), sonde -> bande 2');
 } finally {
@@ -322,7 +322,7 @@ assert.equal(
         '/fr',
         stateForReplay({ due: true })
     ),
-    '/fr/game?mode=reverse&mot=7'
+    '/fr/game?mode=reverse&word=7'
 );
 ok('rejouer : sans catégorie + mots dus -> href serveur + mot=');
 

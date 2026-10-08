@@ -20,7 +20,7 @@
             class="category-card"
             data-category="<%= category.name %>"
             data-total="<%= category.word_count %>"
-            href="<%= base %>/game?categorie=<%= encodeURIComponent(category.name) %>"
+            href="<%= base %>/game?category=<%= encodeURIComponent(category.name) %>"
         >
             <span class="category-name"><%= category.name %></span>
             <span class="category-count"><%= category.word_count %> mots</span>
@@ -33,9 +33,9 @@
 </section>
 <section class="hero hero-modes">
     <div class="mode-row">
-        <span class="mode-label">Deux familles :</span>
-        <a class="chip" href="<%= base %>/game?famille=acquisition">Acquisition lexicale</a>
-        <a class="chip" href="<%= base %>/game?famille=distinction">Distinction sémantique</a>
+        <span class="mode-label">Deux pistes :</span>
+        <a class="chip" href="<%= base %>/game?track=acquisition">Acquisition lexicale</a>
+        <a class="chip" href="<%= base %>/game?track=distinction">Distinction sémantique</a>
     </div>
     <div class="mode-row forms-row">
         <span class="mode-label">Six formes :</span>

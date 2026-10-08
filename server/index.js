@@ -91,7 +91,7 @@ router.get('/', async (req, res) => {
 // Word list route
 router.get('/words', async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 60) : '';
-    const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
+    const category = typeof req.query.category === 'string' ? req.query.category.trim().slice(0, 60) : '';
     const pageParam = Number.parseInt(req.query.page, 10);
     const { words, total, page, pageCount } = await Vocab.getWordsWithMeta({
         q,
@@ -118,30 +118,30 @@ router.get('/words/:word', async (req, res) => {
 
 // Game route
 router.get('/game', async (req, res) => {
-    const motId = Number.parseInt(req.query.mot, 10);
-    const bandId = Number.parseInt(req.query.bande, 10);
+    const motId = Number.parseInt(req.query.word, 10);
+    const bandId = Number.parseInt(req.query.band, 10);
     const mode = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage', 'frappe-contexte'].includes(req.query.mode)
         ? req.query.mode
         : null;
-    const family = ['acquisition', 'distinction'].includes(req.query.famille) ? req.query.famille : null;
-    const category = typeof req.query.categorie === 'string' ? req.query.categorie.trim().slice(0, 60) : '';
+    const track = ['acquisition', 'distinction'].includes(req.query.track) ? req.query.track : null;
+    const category = typeof req.query.category === 'string' ? req.query.category.trim().slice(0, 60) : '';
     const band = Number.isInteger(bandId) ? Math.max(1, Math.min(5, bandId)) : null;
     const game = await Vocab.getGame({
         wordId: Number.isInteger(motId) ? motId : null,
         mode,
-        family,
+        track,
         band,
         category: category || null,
         language: res.locals.language,
     });
     res.render('game', {
         game,
-        sticky: mode !== null || family !== null || Number.isInteger(motId) || category !== '',
-        famille: family,
+        sticky: mode !== null || track !== null || Number.isInteger(motId) || category !== '',
+        track,
         modeFixe: mode !== null,
-        categorie: category,
-        bande: band,
-        categorieTotal: category ? await Vocab.getCategoryTotal(category, res.locals.language) : null,
+        category,
+        band,
+        categoryTotal: category ? await Vocab.getCategoryTotal(category, res.locals.language) : null,
     });
 });
 
@@ -158,14 +158,14 @@ router.post('/game/answer', async (req, res) => {
         : 'identification';
     const sticky = body.sticky === '1';
     const modeFixe = body.modefixe === '1';
-    const famille = ['acquisition', 'distinction'].includes(body.famille) ? body.famille : null;
-    const categorie = typeof body.categorie === 'string' ? body.categorie.trim().slice(0, 60) : '';
-    const bandId = Number.parseInt(body.bande, 10);
-    const bande = Number.isInteger(bandId) ? Math.max(1, Math.min(5, bandId)) : null;
-    const categorieTotalId = Number.parseInt(body.categorietotal, 10);
-    const categorieTotal = Number.isInteger(categorieTotalId) && categorieTotalId > 0 ? categorieTotalId : null;
+    const track = ['acquisition', 'distinction'].includes(body.track) ? body.track : null;
+    const category = typeof body.category === 'string' ? body.category.trim().slice(0, 60) : '';
+    const bandId = Number.parseInt(body.band, 10);
+    const band = Number.isInteger(bandId) ? Math.max(1, Math.min(5, bandId)) : null;
+    const categoryTotalId = Number.parseInt(body.categorytotal, 10);
+    const categoryTotal = Number.isInteger(categoryTotalId) && categoryTotalId > 0 ? categoryTotalId : null;
     const base = res.locals.base;
-    const replayHref = famille ? `${base}/game?famille=${famille}` : `${base}/game?mode=${mode}`;
+    const replayHref = track ? `${base}/game?track=${track}` : `${base}/game?mode=${mode}`;
 
     if (mode === 'frappe' || mode === 'frappe-contexte') {
         const targetId = Number.parseInt(body.target, 10);
@@ -188,13 +188,13 @@ router.post('/game/answer', async (req, res) => {
             sentence,
             example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
             replayHref: sticky ? replayHref : `${base}/game`,
-            categorieTotal,
+            categoryTotal,
             sticky,
             modeFixe,
             target,
             choice: null,
-            categorie,
-            bande,
+            category,
+            band,
         });
         return;
     }
@@ -228,13 +228,13 @@ router.post('/game/answer', async (req, res) => {
         other: other ?? null,
         example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
         replayHref: sticky ? replayHref : `${base}/game`,
-        categorieTotal,
+        categoryTotal,
         sticky,
         modeFixe,
         target,
         choice,
-        categorie,
-        bande,
+        category,
+        band,
     });
 });
 

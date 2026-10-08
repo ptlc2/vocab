@@ -13,9 +13,9 @@ _%>
     data-mode-fixe="<%= modeFixe %>"
     data-replay-href="<%= replayHref %>"
     data-categories="<%= JSON.stringify(target.categories.map(c => c.name)) %>"
-    <%_ if (categorie) { _%>data-categorie="<%= categorie %>" <%_ } _%>
-    <%_ if (categorieTotal) { _%>data-categorie-total="<%= categorieTotal %>" <%_ } _%>
-    <%_ if (bande) { _%>data-bande="<%= bande %>" <%_ } _%>
+    <%_ if (category) { _%>data-category="<%= category %>" <%_ } _%>
+    <%_ if (categoryTotal) { _%>data-category-total="<%= categoryTotal %>" <%_ } _%>
+    <%_ if (band) { _%>data-band="<%= band %>" <%_ } _%>
 >
     <%_ if (correct) { _%>
     <p class="verdict correct">Bien vu !</p>

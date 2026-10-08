@@ -276,21 +276,17 @@ const FAMILY_MODES = {
 export async function getGame({
     wordId = null,
     mode = null,
-    family = null,
+    track = null,
     band = null,
     category = null,
     language = 'fr',
 } = {}) {
     let wanted = mode;
-    if (wanted === null && family !== null) {
-        wanted = FAMILY_MODES[family][Math.floor(Math.random() * FAMILY_MODES[family].length)];
+    if (wanted === null && track !== null) {
+        wanted = FAMILY_MODES[track][Math.floor(Math.random() * FAMILY_MODES[track].length)];
     }
     if (wanted === null) {
-        wanted = category
-            ? Math.random() < 0.5
-                ? 'identification'
-                : 'reverse'
-            : GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)];
+        wanted = GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)];
     }
     if (wordId !== null && wanted !== 'reverse' && wanted !== 'frappe') {
         wanted = 'identification';
