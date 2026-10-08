@@ -350,11 +350,11 @@ async function drawWord({ wordId = null, band = null, category = null, language 
         if (!word) {
             word = await queryOne(
                 `SELECT id, text, long_definition, short_definition, difficulty FROM word
-                WHERE language = $2
+                WHERE language = $1
                 AND EXISTS (
                     SELECT 1 FROM word_category wc
                     JOIN category c ON c.id = wc.category_id
-                    WHERE wc.word_id = word.id AND c.name = $3
+                    WHERE wc.word_id = word.id AND c.name = $2
                 )
                 ORDER BY difficulty ASC, random() LIMIT 1;`,
                 [language, categoryValue]
