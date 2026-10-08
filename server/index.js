@@ -20,7 +20,7 @@ app.locals.description =
     'Apprendre le vocabulaire français par le jeu : définitions, nuances, mots proches et confusions classiques.';
 app.locals.difficulties = Difficulties;
 app.locals.rootBase = deploymentBase;
-app.locals.cssVersion = 4;
+app.locals.cssVersion = 5;
 app.locals.jsVersion = 15;
 
 function setDefaultLocals(res) {
