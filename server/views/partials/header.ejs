@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="<%= base %>/style.css?v=3">
     <title><%= title %> · Vocab</title>
 </head>
-<body data-base="<%= base %>" data-language="<%= language %>">
+<body data-base="<%= base %>" data-language="<%= language %>" data-difficulties="<%= JSON.stringify(difficulties) %>">
     <header class="site-header">
         <div class="container">
             <a class="brand" href="<%= base %>/">Vocab<span class="brand-dot">.</span></a>
@@ -17,6 +17,7 @@
                 <a href="<%= base %>/words" class="<%= locals.nav === 'words' ? 'active' : '' %>">Mots</a>
                 <a href="<%= base %>/game" class="<%= locals.nav === 'game' ? 'active' : '' %>">Jouer</a>
                 <a href="<%= base %>/progress" class="<%= locals.nav === 'progress' ? 'active' : '' %>">Progression</a>
+                <a href="<%= rootBase %>/">Langues</a>
             </nav>
         </div>
     </header>

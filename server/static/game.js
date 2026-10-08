@@ -286,6 +286,33 @@ function isPlayedCategory(state, name) {
     return Object.values(state.words).some(entry => (entry.categories ?? []).includes(name));
 }
 
+const FALLBACK_DIFFICULTIES = {
+    1: { name: 'Basique', color: '#4caf50' },
+    2: { name: 'Usuel', color: '#2196f3' },
+    3: { name: 'Soutenu', color: '#ff9800' },
+    4: { name: 'Littéraire', color: '#9c27b0' },
+    5: { name: 'Érudit', color: '#f44336' },
+};
+let difficultiesCache = null;
+
+export function difficultyInfo(level) {
+    if (difficultiesCache === null) {
+        difficultiesCache = {};
+        try {
+            const raw = typeof document !== 'undefined' ? document.body?.dataset?.difficulties : null;
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                for (const [key, value] of Object.entries(parsed)) {
+                    difficultiesCache[Number(key)] = value;
+                }
+            }
+        } catch {
+            difficultiesCache = {};
+        }
+    }
+    return difficultiesCache[level] ?? FALLBACK_DIFFICULTIES[level] ?? { name: `niveau ${level}`, color: 'var(--muted)' };
+}
+
 function levelLabel(state, name) {
     const bands = state.bands[name] ?? [];
     if (bands.length > 0) return `niveau ${categoryLevel(state, name)}/${MAX_BAND}`;
@@ -376,9 +403,10 @@ export function renderProgress(root, base, state, language = 'fr') {
                 el(
                     'span',
                     'progress-meta',
-                    `niveau ${entry.difficulty} · boîte ${entry.box} · ${entry.correct}✓ ${entry.wrong}✗`
+                    `difficulté ${difficultyInfo(entry.difficulty).name} · boîte ${entry.box} · ${entry.correct}✓ ${entry.wrong}✗`
                 )
             );
+            item.querySelector('.progress-word').style.setProperty('--diff', difficultyInfo(entry.difficulty).color);
             if (group.testable) {
                 item.appendChild(el('a', 'btn btn-secondary progress-test', 'Se tester', `${base}/game?mot=${entry.id}`));
             }

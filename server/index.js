@@ -19,6 +19,7 @@ app.set('views', 'views');
 app.locals.description =
     'Apprendre le vocabulaire français par le jeu : définitions, nuances, mots proches et confusions classiques.';
 app.locals.difficulties = Difficulties;
+app.locals.rootBase = deploymentBase;
 
 function setDefaultLocals(res) {
     if (!res.locals.language) {
@@ -53,6 +54,12 @@ app.use((req, res, next) => {
 
 const router = Express.Router();
 
+router.use((req, res, next) => {
+    if ((req.path === '/style.css' || req.path === '/game.js') && req.query.v !== undefined) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+    next();
+});
 router.use(Express.static('static'));
 
 // Locale middleware
