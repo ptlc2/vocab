@@ -21,7 +21,7 @@ app.locals.description =
 app.locals.difficulties = Difficulties;
 app.locals.rootBase = deploymentBase;
 app.locals.cssVersion = 5;
-app.locals.jsVersion = 16;
+app.locals.jsVersion = 17;
 
 function setDefaultLocals(res) {
     if (!res.locals.language) {
@@ -123,6 +123,31 @@ router.get('/words/:word', async (req, res) => {
     }
 });
 
+// Pools de solidité : le client publie ses mots solides (boîte >= 2 et >= 3) dans un cookie
+function parsePoolCookie(header, language) {
+    const cookies = header?.split(';') ?? [];
+    for (const part of cookies) {
+        const eq = part.indexOf('=');
+        if (eq === -1) continue;
+        if (part.slice(0, eq).trim() !== `vocabpool_${language}`) continue;
+        const raw = decodeURIComponent(part.slice(eq + 1).trim());
+        const pools = { box2: null, box3: null };
+        for (const tier of raw.split('|')) {
+            const colon = tier.indexOf(':');
+            if (colon === -1) continue;
+            const ids = tier
+                .slice(colon + 1)
+                .split(',')
+                .map(id => Number.parseInt(id, 10))
+                .filter(id => Number.isInteger(id));
+            if (tier.slice(0, colon) === '2') pools.box2 = ids;
+            if (tier.slice(0, colon) === '3') pools.box3 = ids;
+        }
+        return pools;
+    }
+    return { box2: null, box3: null };
+}
+
 // Game route
 router.get('/game', async (req, res) => {
     const motId = Number.parseInt(req.query.word, 10);
@@ -140,6 +165,7 @@ router.get('/game', async (req, res) => {
         band,
         category: category || null,
         language: res.locals.language,
+        pools: parsePoolCookie(req.headers.cookie, res.locals.language),
     });
     res.render('game', {
         game,
@@ -197,7 +223,14 @@ router.post('/game/answer', async (req, res) => {
             guess,
             definition: target.short_definition,
             sentence,
-            example: target.examples.length > 0 ? target.examples[Math.floor(Math.random() * target.examples.length)] : null,
+            example:
+                (sentence ? target.examples.filter(candidate => candidate.sentence !== sentence) : target.examples)[
+                    Math.floor(
+                        Math.random() *
+                            (sentence ? target.examples.filter(candidate => candidate.sentence !== sentence) : target.examples)
+                                .length
+                    )
+                ] ?? null,
             replayHref: sticky ? replayHref : `${base}/game`,
             categoryTotal,
             sticky,

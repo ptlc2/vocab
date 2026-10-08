@@ -10,6 +10,7 @@ import {
     dueWords,
     counts,
     buildReplayHref,
+    poolCookieValue,
 } from '../static/game.js';
 
 let checks = 0;
@@ -335,42 +336,16 @@ ok('rejouer : sans catégorie + pas de dus -> href serveur tel quel');
 assert.equal(buildReplayHref({}, '/fr', stateForReplay({ due: false })), '/fr/game');
 ok('rejouer : sans catégorie ni href serveur -> jeu surprise');
 
-// --- saisie libre : seulement sur des mots solides (boîte >= 3) ----------------
+// --- cookie de pools de solidité (boîte >= 2 / >= 3) ---------------------------
 
-const typingState = stateForReplay({ due: false });
-const originalRandomTyping = Math.random;
-try {
-    Math.random = () => 0.1;
-    const noStrong = buildReplayHref({ category: 'nature' }, '/fr', typingState);
-    assert.equal(noStrong, '/fr/game?category=nature&band=2');
-    ok('typing : pas de mot solide (boîte 2) -> pas de frappe, bande normale');
-
-    typingState.words['8'] = {
-        text: 'chêne',
-        difficulty: 2,
-        box: 3,
-        due: Date.now() + 86400e3,
-        correct: 3,
-        wrong: 0,
-        categories: ['nature'],
-    };
-    const href = buildReplayHref({ category: 'nature' }, '/fr', typingState);
-    assert.ok(href.startsWith('/fr/game?category=nature&word=8&mode=frappe'), 'href: ' + href);
-    ok('typing : mot boîte 3 dans la catégorie + hasard -> frappe ciblée sur ce mot');
-
-    const hrefGlobal = buildReplayHref({}, '/fr', typingState);
-    assert.equal(hrefGlobal, '/fr/game?word=8&mode=frappe');
-    ok('typing : sans catégorie, mot solide global + hasard -> frappe ciblée');
-
-    const modeFixeHref = buildReplayHref(
-        { modeFixe: true, mode: 'reverse', replayHref: '/fr/game?mode=reverse' },
-        '/fr',
-        typingState
-    );
-    assert.equal(modeFixeHref, '/fr/game?mode=reverse');
-    ok('typing : mode choisi explicitement -> jamais dérangé par le frappe auto');
-} finally {
-    Math.random = originalRandomTyping;
-}
+const poolState = newState();
+recordRound(poolState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(poolState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(poolState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(poolState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(poolState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(poolState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
+assert.equal(poolCookieValue(poolState), '2:1,2|3:1,2');
+ok('poolCookieValue : boîtes >= 2 et >= 3 publiées (2:1,2|3:1,2)');
 
 console.info(`\nTests unitaires v2 : ${checks} vérifications ok`);

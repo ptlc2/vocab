@@ -198,13 +198,22 @@ function parseCategories(raw) {
     }
 }
 
-const TYPING_PROBABILITY = 0.2;
-const TYPING_BOX = 3;
+export function poolCookieValue(state) {
+    const ids = minBox =>
+        Object.entries(state.words)
+            .filter(([, entry]) => entry.box >= minBox)
+            .map(([id]) => id);
+    const box2 = ids(2);
+    const box3 = ids(3);
+    return `2:${box2.join(',')}|3:${box3.join(',')}`;
+}
 
-export function strongWords(state, category = null) {
-    return Object.entries(state.words)
-        .filter(([, entry]) => entry.box >= TYPING_BOX && (category === null || (entry.categories ?? []).includes(category)))
-        .map(([id, entry]) => ({ id, ...entry }));
+function updatePoolCookie(state, language) {
+    try {
+        document.cookie = `vocabpool_${language}=${encodeURIComponent(poolCookieValue(state))};path=/;max-age=31536000;samesite=lax`;
+    } catch {
+        // sans cookie, le serveur retire simplement les modes exigeants du hasard
+    }
 }
 
 export function buildReplayHref(round, base, state) {
@@ -215,26 +224,12 @@ export function buildReplayHref(round, base, state) {
         if (modeFixe && mode) href = appendTo(href, `mode=${mode}`);
         const dueInCategory = dueWords(state).filter(word => (word.categories ?? []).includes(category));
         if (dueInCategory.length > 0) return appendTo(href, `word=${dueInCategory[0].id}`);
-        if (!modeFixe && Math.random() < TYPING_PROBABILITY) {
-            const strong = strongWords(state, category);
-            if (strong.length > 0) {
-                const pick = strong[Math.floor(Math.random() * strong.length)];
-                return appendTo(href, `word=${pick.id}&mode=frappe`);
-            }
-        }
         const level = categoryLevel(state, category);
         const band = Math.random() < PROBE_PROBABILITY ? Math.min(MAX_BAND, level + 1) : level;
         return appendTo(href, `band=${band}`);
     }
     const due = dueWords(state);
     if (due.length > 0) return appendTo(replayHref || `${base}/game`, `word=${due[0].id}`);
-    if (!modeFixe && Math.random() < TYPING_PROBABILITY) {
-        const strong = strongWords(state);
-        if (strong.length > 0) {
-            const pick = strong[Math.floor(Math.random() * strong.length)];
-            return `${base}/game?word=${pick.id}&mode=frappe`;
-        }
-    }
     return replayHref || `${base}/game`;
 }
 
@@ -479,5 +474,6 @@ if (typeof document !== 'undefined') {
     if (categoryGrid) renderHomeCategories(categoryGrid, state);
     if (resultCard || gameCard || categoryGrid) {
         saveState(storage, state, language);
+        updatePoolCookie(state, language);
     }
 }

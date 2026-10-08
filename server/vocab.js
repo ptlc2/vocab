@@ -268,14 +268,46 @@ export async function linkWordRelations(word) {
     return linked;
 }
 
-// Les modes de saisie libre (frappe, frappe-contexte) ne sont JAMAIS tirés au hasard :
-// le serveur ne connaît pas les boîtes du joueur, et taper un mot à la boîte <= 2 est prématuré.
-// Ils restent disponibles en choix explicite (?mode=) et le client les dirige vers des mots solides.
-const GAME_MODES = ['identification', 'reverse', 'contexte', 'jumelage'];
+// Pools de solidité transmis par le client (cookie) : un mot de boîte >= 2 mérite
+// les modes inversés, un mot de boîte >= 3 mérite la saisie libre. Sans pool
+// (joueur neuf ou sans JS), les modes exigeants ne sortent PAS au hasard.
+const GAME_MODES = ['identification', 'reverse', 'frappe', 'contexte', 'jumelage'];
 const FAMILY_MODES = {
-    acquisition: ['identification', 'reverse'],
+    acquisition: ['identification', 'reverse', 'frappe'],
     distinction: ['contexte', 'jumelage'],
 };
+
+export function parsePools(pools) {
+    if (typeof pools !== 'object' || pools === null) return { box2: null, box3: null };
+    const toInts = value =>
+        Array.isArray(value) && value.length > 0 ? value.filter(id => Number.isInteger(id)).slice(0, 500) : null;
+    return { box2: toInts(pools.box2), box3: toInts(pools.box3) };
+}
+
+async function buildGame(wanted, { wordId, band, category, language, pools }) {
+    if (wanted === 'contexte') {
+        return getDistinctionGame(language, band, category);
+    }
+    if (wanted === 'jumelage') {
+        return getPairingGame(language, band, category, pools.box2);
+    }
+    if (wanted === 'frappe-contexte') {
+        return getFrappeContexteGame(language, band, category, pools.box3);
+    }
+    if (wanted === 'reverse') {
+        return getReverseGame({ wordId, band, category, language, pool: pools.box2 });
+    }
+    if (wanted === 'frappe') {
+        return getFrappeGame({ wordId, band, category, language, pool: pools.box3 });
+    }
+    return getAcquisitionGame(wordId, { band, category, language });
+}
+
+function modeEligible(wanted, pools) {
+    if (wanted === 'reverse' || wanted === 'jumelage') return pools.box2 !== null;
+    if (wanted === 'frappe' || wanted === 'frappe-contexte') return pools.box3 !== null;
+    return true;
+}
 
 export async function getGame({
     wordId = null,
@@ -284,36 +316,49 @@ export async function getGame({
     band = null,
     category = null,
     language = 'fr',
+    pools = null,
 } = {}) {
+    const safePools = parsePools(pools);
+    const explicit = mode !== null;
     let wanted = mode;
     if (wanted === null && track !== null) {
-        wanted = FAMILY_MODES[track][Math.floor(Math.random() * FAMILY_MODES[track].length)];
+        const family = FAMILY_MODES[track].filter(candidate => modeEligible(candidate, safePools));
+        const pool = family.length > 0 ? family : ['identification'];
+        wanted = pool[Math.floor(Math.random() * pool.length)];
     }
     if (wanted === null) {
-        wanted = GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)];
+        const eligible = GAME_MODES.filter(candidate => modeEligible(candidate, safePools));
+        const pool = eligible.length > 0 ? eligible : ['identification'];
+        wanted = pool[Math.floor(Math.random() * pool.length)];
     }
     if (wordId !== null && wanted !== 'reverse' && wanted !== 'frappe') {
         wanted = 'identification';
     }
-    if (wanted === 'contexte' || wanted === 'jumelage' || wanted === 'frappe-contexte') {
+    if (explicit) {
+        // choix explicite : le pool affine mais ne bloque jamais le mode demandé
         try {
-            if (wanted === 'contexte') return await getDistinctionGame(language, band, category);
-            if (wanted === 'jumelage') return await getPairingGame(language, band, category);
-            return await getFrappeContexteGame(language, band, category);
+            return await buildGame(wanted, { wordId, band, category, language, pools: safePools });
         } catch {
-            return getAcquisitionGame(null, { band, category, language });
+            return buildGame(wanted, { wordId, band, category, language, pools: { box2: null, box3: null } });
         }
     }
-    if (wanted === 'reverse') {
-        return getReverseGame({ wordId, band, category, language });
-    }
-    if (wanted === 'frappe') {
-        return getFrappeGame({ wordId, band, category, language });
+    // tirage aléatoire : les modes exigeants exigent un mot du pool correspondant,
+    // sinon on retire un autre mode éligible au hasard (jamais de mode servi sur un mot faible)
+    const tried = new Set();
+    while (tried.size < GAME_MODES.length) {
+        try {
+            return await buildGame(wanted, { wordId, band, category, language, pools: safePools });
+        } catch {
+            tried.add(wanted);
+            const remaining = GAME_MODES.filter(candidate => !tried.has(candidate) && modeEligible(candidate, safePools));
+            if (remaining.length === 0) break;
+            wanted = remaining[Math.floor(Math.random() * remaining.length)];
+        }
     }
     return getAcquisitionGame(wordId, { band, category, language });
 }
 
-async function drawWord({ wordId = null, band = null, category = null, language = 'fr' } = {}) {
+async function drawWord({ wordId = null, band = null, category = null, language = 'fr', pool = null } = {}) {
     let word = null;
     if (Number.isInteger(wordId)) {
         word = await queryOne(
@@ -323,42 +368,46 @@ async function drawWord({ wordId = null, band = null, category = null, language 
     }
     const categoryValue = typeof category === 'string' ? category : null;
     const bandValue = Number.isInteger(band) ? band : null;
+    const poolValue = Array.isArray(pool) && pool.length > 0 ? pool : null;
     if (!word && bandValue !== null && categoryValue !== null) {
         word = await queryOne(
             `SELECT id, text, long_definition, short_definition, difficulty FROM word
             WHERE language = $2 AND difficulty = $1
+            AND ($4::int[] IS NULL OR id = ANY($4))
             AND EXISTS (
                 SELECT 1 FROM word_category wc
                 JOIN category c ON c.id = wc.category_id
                 WHERE wc.word_id = word.id AND c.name = $3
             )
             ORDER BY random() LIMIT 1;`,
-            [bandValue, language, categoryValue]
+            [bandValue, language, categoryValue, poolValue]
         );
         if (!word) {
             word = await queryOne(
                 `SELECT id, text, long_definition, short_definition, difficulty FROM word
                 WHERE language = $2 AND difficulty <= $1
+                AND ($4::int[] IS NULL OR id = ANY($4))
                 AND EXISTS (
                     SELECT 1 FROM word_category wc
                     JOIN category c ON c.id = wc.category_id
                     WHERE wc.word_id = word.id AND c.name = $3
                 )
                 ORDER BY difficulty DESC, random() LIMIT 1;`,
-                [bandValue, language, categoryValue]
+                [bandValue, language, categoryValue, poolValue]
             );
         }
         if (!word) {
             word = await queryOne(
                 `SELECT id, text, long_definition, short_definition, difficulty FROM word
                 WHERE language = $1
+                AND ($3::int[] IS NULL OR id = ANY($3))
                 AND EXISTS (
                     SELECT 1 FROM word_category wc
                     JOIN category c ON c.id = wc.category_id
                     WHERE wc.word_id = word.id AND c.name = $2
                 )
                 ORDER BY difficulty ASC, random() LIMIT 1;`,
-                [language, categoryValue]
+                [language, categoryValue, poolValue]
             );
         }
     }
@@ -367,29 +416,32 @@ async function drawWord({ wordId = null, band = null, category = null, language 
         word = await queryOne(
             `SELECT id, text, long_definition, short_definition, difficulty FROM word
             WHERE language = $2 AND difficulty = $1
+            AND ($3::int[] IS NULL OR id = ANY($3))
             ORDER BY random() LIMIT 1;`,
-            [bandValue, language]
+            [bandValue, language, poolValue]
         );
     }
     if (!word && categoryValue !== null) {
         word = await queryOne(
             `SELECT id, text, long_definition, short_definition, difficulty FROM word
             WHERE language = $1
+            AND ($3::int[] IS NULL OR id = ANY($3))
             AND EXISTS (
                 SELECT 1 FROM word_category wc
                 JOIN category c ON c.id = wc.category_id
                 WHERE wc.word_id = word.id AND c.name = $2
             )
             ORDER BY random() LIMIT 1;`,
-            [language, categoryValue]
+            [language, categoryValue, poolValue]
         );
     }
     if (!word) {
         word = await queryOne(
             `SELECT id, text, long_definition, short_definition, difficulty FROM word
             WHERE language = $1
+            AND ($2::int[] IS NULL OR id = ANY($2))
             ORDER BY random() LIMIT 1;`,
-            [language]
+            [language, poolValue]
         );
     }
     return word ?? null;
@@ -405,17 +457,22 @@ async function drawDistractorDefinitions(word, language = 'fr') {
     );
 }
 
-async function drawPair(language = 'fr', band = null, category = null) {
+async function drawPair(language = 'fr', band = null, category = null, pool = null) {
     const max = Number.isInteger(band) ? band : null;
     const categoryValue = typeof category === 'string' ? category : null;
+    const poolValue = Array.isArray(pool) && pool.length > 0 ? pool : null;
+    // le mode prime sur la catégorie : sans paire dans la catégorie, on sert la langue
     const pair =
-        (await drawPairFromTables(language, max, categoryValue)) ??
-        (max !== null ? await drawPairFromTables(language, null, categoryValue) : null);
+        (await drawPairFromTables(language, max, categoryValue, poolValue)) ??
+        (max !== null ? await drawPairFromTables(language, null, categoryValue, poolValue) : null) ??
+        (categoryValue !== null ? await drawPairFromTables(language, max, null, poolValue) : null) ??
+        (await drawPairFromTables(language, null, null, poolValue));
     if (!pair) throw new Error('Not enough word pairs in database to start a game');
     return pair;
 }
 
-async function drawPairFromTables(language, max, category) {
+async function drawPairFromTables(language, max, category, pool = null) {
+    const poolClause = 'AND ($4::int[] IS NULL OR w1.id = ANY($4) OR w2.id = ANY($4))';
     const fromConfusions = await queryOne(
         `SELECT w1.id AS a_id, w1.text AS a_text, w1.short_definition AS a_def, w1.difficulty AS a_difficulty,
                 w2.id AS b_id, w2.text AS b_text, w2.short_definition AS b_def, w2.difficulty AS b_difficulty, c.nuance
@@ -429,8 +486,9 @@ async function drawPairFromTables(language, max, category) {
             JOIN category cat ON cat.id = wc.category_id
             WHERE (wc.word_id = w1.id OR wc.word_id = w2.id) AND cat.name = $3
         ))
+        ${pool ? poolClause : ''}
         ORDER BY random() LIMIT 1`,
-        [language, max, category]
+        pool ? [language, max, category, pool] : [language, max, category]
     );
     if (fromConfusions) return fromConfusions;
     const fromNearWords = await queryOne(
@@ -446,8 +504,9 @@ async function drawPairFromTables(language, max, category) {
             JOIN category cat ON cat.id = wc.category_id
             WHERE (wc.word_id = w1.id OR wc.word_id = w2.id) AND cat.name = $3
         ))
+        ${pool ? poolClause : ''}
         ORDER BY random() LIMIT 1`,
-        [language, max, category]
+        pool ? [language, max, category, pool] : [language, max, category]
     );
     return fromNearWords ?? null;
 }
@@ -465,8 +524,8 @@ export async function getAcquisitionGame(wordId = null, { band = null, category 
     };
 }
 
-export async function getReverseGame({ wordId = null, band = null, category = null, language = 'fr' } = {}) {
-    const word = await drawWord({ wordId, band, category, language });
+export async function getReverseGame({ wordId = null, band = null, category = null, language = 'fr', pool = null } = {}) {
+    const word = await drawWord({ wordId, band, category, language, pool });
     if (!word) throw new Error('Not enough words in database to start a game');
     const words = await drawDistractorDefinitions(word, language);
     return {
@@ -481,8 +540,8 @@ export async function getReverseGame({ wordId = null, band = null, category = nu
     };
 }
 
-export async function getFrappeGame({ wordId = null, band = null, category = null, language = 'fr' } = {}) {
-    const word = await drawWord({ wordId, band, category, language });
+export async function getFrappeGame({ wordId = null, band = null, category = null, language = 'fr', pool = null } = {}) {
+    const word = await drawWord({ wordId, band, category, language, pool });
     if (!word) throw new Error('Not enough words in database to start a game');
     return {
         mode: 'frappe',
@@ -496,9 +555,17 @@ export async function getFrappeGame({ wordId = null, band = null, category = nul
     };
 }
 
-export async function getFrappeContexteGame(language = 'fr', band = null, category = null) {
-    const pair = await drawPair(language, band, category);
-    const flip = Math.random() < 0.5;
+function pairTargetFlip(pair, pool = null) {
+    const aInPool = pool === null || pool.includes(pair.a_id);
+    const bInPool = pool === null || pool.includes(pair.b_id);
+    if (aInPool && !bInPool) return false;
+    if (bInPool && !aInPool) return true;
+    return Math.random() < 0.5;
+}
+
+export async function getFrappeContexteGame(language = 'fr', band = null, category = null, pool = null) {
+    const pair = await drawPair(language, band, category, pool);
+    const flip = pairTargetFlip(pair, pool === null ? null : pool);
     const target = { id: flip ? pair.a_id : pair.b_id, text: flip ? pair.a_text : pair.b_text };
     const examples = await queryMany('SELECT sentence FROM example WHERE word_id = $1', [target.id]);
     const sentence = pickRandomExample(examples, target.text);
@@ -540,9 +607,9 @@ export function isCloseMatch(guess, answer) {
     return levenshtein(normalizeForCompare(guess), normalizeForCompare(answer)) <= 1;
 }
 
-export async function getPairingGame(language = 'fr', band = null, category = null) {
-    const pair = await drawPair(language, band, category);
-    const flip = Math.random() < 0.5;
+export async function getPairingGame(language = 'fr', band = null, category = null, pool = null) {
+    const pair = await drawPair(language, band, category, pool);
+    const flip = pairTargetFlip(pair, pool === null ? null : pool);
     const target = flip ? pair.a_id : pair.b_id;
     const other = flip ? pair.b_id : pair.a_id;
     return {
