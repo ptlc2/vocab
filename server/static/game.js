@@ -416,9 +416,21 @@ function buildRound(mode, word, dictionary, extra = {}) {
     return null;
 }
 
-export function pickRound(dictionary, state, params, rand = Math.random) {
+export function pickRound(dictionary, state, params, rand = Math.random, exclude = null) {
     const { category = null, mode = null, track = null, wordId = null } = params;
     const byId = wordsById(dictionary);
+    // Variété : on ne ressert pas un mot déjà servi dans la session, tant qu'il reste du choix.
+    const fresh = list => {
+        if (exclude === null || exclude.size === 0 || !Array.isArray(list)) return list;
+        const unexcluded = list.filter(item => {
+            if (typeof item.id === 'number') return !exclude.has(item.id);
+            if (typeof item.a === 'number' && typeof item.b === 'number') {
+                return !exclude.has(item.a) && !exclude.has(item.b);
+            }
+            return true;
+        });
+        return unexcluded.length > 0 ? unexcluded : list;
+    };
 
     // Mot précis demandé : servi tel quel (mode solo), dégradé si le mode a besoin d'une paire.
     if (wordId !== null && Number.isInteger(wordId)) {
@@ -428,10 +440,11 @@ export function pickRound(dictionary, state, params, rand = Math.random) {
         }
         // id périmé (base régénérée) : purge et tirage normal
         delete state.words[String(wordId)];
-        return pickRound(dictionary, state, { category, mode, track }, rand);
+        return pickRound(dictionary, state, { category, mode, track }, rand, exclude);
     }
 
     // La mémoire d'abord : les mots dus (dans la catégorie si session de catégorie).
+    // Un mot dû doit revenir, même servi récemment — c'est le rappel.
     const due = dueWords(state).filter(word => !category || (word.categories ?? []).includes(category));
     if (due.length > 0) {
         const word = byId.get(Number.parseInt(due[0].id, 10));
@@ -440,9 +453,9 @@ export function pickRound(dictionary, state, params, rand = Math.random) {
 
     // Mode explicitement choisi : gardé pour la session.
     if (mode !== null) {
-        const word = pickRoundWord(mode, state, dictionary, category, rand);
+        const word = pickRoundWord(mode, state, dictionary, category, rand, fresh);
         if (word) return buildRound(mode, word, dictionary);
-        return pickRound(dictionary, state, { category, mode: null, track }, rand);
+        return pickRound(dictionary, state, { category, mode: null, track }, rand, exclude);
     }
 
     // Piste : tirage dans la famille.
@@ -461,39 +474,39 @@ export function pickRound(dictionary, state, params, rand = Math.random) {
             pool.filter(candidate => !tried.has(candidate)),
             rand
         );
-        const word = pickRoundWord(mode, state, dictionary, category, rand);
+        const word = pickRoundWord(mode, state, dictionary, category, rand, fresh);
         if (word) return buildRound(mode, word, dictionary);
         tried.add(mode);
     }
     // dernier recours : identification sur un mot au hasard de la langue
-    return buildRound('identification', pickFrom(dictionary.words, rand), dictionary);
+    return buildRound('identification', pickFrom(fresh(dictionary.words), rand), dictionary);
 }
 
-function pickRoundWord(mode, state, dictionary, category, rand) {
+function pickRoundWord(mode, state, dictionary, category, rand, fresh = list => list) {
     if (mode === 'identification') {
         const level = category ? categoryLevel(state, category) : null;
         if (!category) {
-            return pickFrom(dictionary.words, rand);
+            return pickFrom(fresh(dictionary.words), rand);
         }
         const probe = rand() < PROBE_PROBABILITY;
         const targetBand = probe ? Math.min(MAX_BAND, level + 1) : level;
         const inCat = dictionary.words.filter(word => inCategory(word, category));
-        if (inCat.length === 0) return pickFrom(dictionary.words, rand);
+        if (inCat.length === 0) return pickFrom(fresh(dictionary.words), rand);
         const atBand = inCat.filter(word => word.difficulty === targetBand);
-        if (atBand.length > 0) return pickFrom(atBand, rand);
-        return pickFrom(inCat, rand);
+        if (atBand.length > 0) return pickFrom(fresh(atBand), rand);
+        return pickFrom(fresh(inCat), rand);
     }
     if (mode === 'reverse') {
         const solid = solidWords(state, dictionary, category, 2);
-        if (solid.length > 0) return pickFrom(solid, rand);
+        if (solid.length > 0) return pickFrom(fresh(solid), rand);
         const global = solidWords(state, dictionary, null, 2);
-        return global.length > 0 ? pickFrom(global, rand) : null;
+        return global.length > 0 ? pickFrom(fresh(global), rand) : null;
     }
     if (mode === 'frappe') {
         const solid = solidWords(state, dictionary, category, 3);
-        if (solid.length > 0) return pickFrom(solid, rand);
+        if (solid.length > 0) return pickFrom(fresh(solid), rand);
         const global = solidWords(state, dictionary, null, 3);
-        return global.length > 0 ? pickFrom(global, rand) : null;
+        return global.length > 0 ? pickFrom(fresh(global), rand) : null;
     }
     if (mode === 'jumelage') {
         const pairs = pairsFor(dictionary);
@@ -506,7 +519,7 @@ function pickRoundWord(mode, state, dictionary, category, rand) {
             return category ? aOk || bOk : a >= 2 || b >= 2;
         });
         if (candidates.length === 0) return null;
-        const pair = pickFrom(candidates, rand);
+        const pair = pickFrom(fresh(candidates), rand);
         const targetBox = state.words[pair.a]?.box ?? 0;
         return byId.get((state.words[pair.b]?.box ?? 0) > targetBox ? pair.b : pair.a);
     }
@@ -518,7 +531,9 @@ function pickRoundWord(mode, state, dictionary, category, rand) {
             const b = byId.get(pair.b) ?? {};
             return inCategory(a, category) || inCategory(b, category);
         });
-        const pair = candidates.length > 0 ? pickFrom(candidates, rand) : pickFrom(pairs, rand);
+        // sans paire dans la catégorie, le mode cède sa place (pas de paire hors catégorie)
+        if (candidates.length === 0) return null;
+        const pair = pickFrom(fresh(candidates), rand);
         return byId.get(rand() < 0.5 ? pair.a : pair.b);
     }
     if (mode === 'frappe-contexte') {
@@ -532,7 +547,7 @@ function pickRoundWord(mode, state, dictionary, category, rand) {
             return category ? aOk || bOk : a >= 3 || b >= 3;
         });
         if (candidates.length === 0) return null;
-        const pair = pickFrom(candidates, rand);
+        const pair = pickFrom(fresh(candidates), rand);
         const targetBox = state.words[pair.a]?.box ?? 0;
         return byId.get((state.words[pair.b]?.box ?? 0) > targetBox ? pair.b : pair.a);
     }
@@ -877,14 +892,25 @@ export function startGame(root, dictionary, { base, language, storage, state }) 
         result.querySelector('.btn-primary').addEventListener('click', next);
     };
 
+    const served = []; // mots déjà servis dans la session : on les évite tant qu'il reste du choix
+    const SERVED_CAP = 30;
+
     const next = () => {
-        current = pickRound(dictionary, state, {
-            category: session.category,
-            mode: session.mode,
-            track: session.track,
-            wordId: session.wordId,
-        });
+        current = pickRound(
+            dictionary,
+            state,
+            {
+                category: session.category,
+                mode: session.mode,
+                track: session.track,
+                wordId: session.wordId,
+            },
+            Math.random,
+            new Set(served)
+        );
         session.wordId = null; // le mot précis ne sert qu'au premier round
+        served.unshift(current.target);
+        if (served.length > SERVED_CAP) served.pop();
         const card = renderRound(root, current, base, state, session.category);
         for (const button of card.querySelectorAll('.option-btn')) {
             button.addEventListener('click', () => answer(button.value));

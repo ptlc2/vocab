@@ -22,7 +22,7 @@ app.locals.description =
 app.locals.difficulties = Difficulties;
 app.locals.rootBase = deploymentBase;
 app.locals.cssVersion = 5;
-app.locals.jsVersion = 19;
+app.locals.jsVersion = 20;
 
 function setDefaultLocals(res) {
     if (!res.locals.language) {
