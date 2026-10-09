@@ -925,6 +925,104 @@ export function startGame(root, dictionary, { base, language, storage, state }) 
 }
 
 // ---------------------------------------------------------------------------
+// Fiche d'un mot (rendu client, la coquille sert le jeu ET la fiche selon l'URL)
+// ---------------------------------------------------------------------------
+
+export function renderWordPage(root, dictionary, wordText, base, state) {
+    root.textContent = '';
+    const word = dictionary.words.find(candidate => candidate.text === wordText);
+    if (!word) {
+        root.appendChild(el('p', 'page-sub', 'Mot non trouvé.'));
+        const back = el('a', 'btn btn-primary', 'Tous les mots', `${base}/words`);
+        root.appendChild(back);
+        return;
+    }
+
+    const difficulty = difficultyInfo(word.difficulty);
+    const entry = el('article', 'entry');
+    const head = el('header', 'entry-head');
+    head.appendChild(el('h1', null, word.text));
+    const badges = el('div', 'badges');
+    const difficultyBadge = el('span', 'badge');
+    difficultyBadge.title = difficulty.description ?? '';
+    difficultyBadge.style.setProperty('--diff', difficulty.color);
+    difficultyBadge.appendChild(el('span', 'badge-dot'));
+    difficultyBadge.appendChild(document.createTextNode(` ${difficulty.name}`));
+    badges.appendChild(difficultyBadge);
+    badges.appendChild(el('span', 'badge', word.register));
+    for (const categoryName of word.categories ?? []) {
+        badges.appendChild(el('a', 'badge', categoryName, `${base}/words?category=${encodeURIComponent(categoryName)}`));
+    }
+    head.appendChild(badges);
+    entry.appendChild(head);
+
+    entry.appendChild(el('p', 'short-def', word.short_definition));
+    entry.appendChild(el('p', 'long-def', word.long_definition));
+    if (word.origin) {
+        const section = el('section', 'entry-section');
+        section.appendChild(el('h2', null, 'Origine'));
+        section.appendChild(el('p', 'origin-text', word.origin));
+        entry.appendChild(section);
+    }
+    if (word.notes) {
+        const section = el('section', 'entry-section');
+        section.appendChild(el('h2', null, 'Notes'));
+        section.appendChild(el('p', 'origin-text', word.notes));
+        entry.appendChild(section);
+    }
+    if ((word.examples ?? []).length > 0) {
+        const section = el('section', 'entry-section');
+        section.appendChild(el('h2', null, 'En usage'));
+        const list = el('ul', 'examples');
+        for (const sentence of word.examples) {
+            list.appendChild(el('li', null, sentence));
+        }
+        section.appendChild(list);
+        entry.appendChild(section);
+    }
+
+    const pairs = pairsFor(dictionary).filter(pair => pair.a === word.id || pair.b === word.id);
+    const confusions = pairs.filter(pair => pair.nuance);
+    const nearWords = pairs.filter(pair => !pair.nuance);
+    if (confusions.length > 0) {
+        const section = el('section', 'entry-section');
+        section.appendChild(el('h2', null, 'Ne pas confondre avec'));
+        const list = el('div', 'confusion-list');
+        for (const pair of confusions) {
+            const otherId = pair.a === word.id ? pair.b : pair.a;
+            const other = dictionary.words.find(candidate => candidate.id === otherId);
+            if (!other) continue;
+            const card = el('div', 'confusion-card');
+            card.appendChild(el('a', 'confusion-word', other.text, `${base}/words/${encodeURIComponent(other.text)}`));
+            card.appendChild(el('p', null, pair.nuance));
+            list.appendChild(card);
+        }
+        section.appendChild(list);
+        entry.appendChild(section);
+    }
+    if (nearWords.length > 0) {
+        const section = el('section', 'entry-section');
+        section.appendChild(el('h2', null, 'Mots proches'));
+        const chips = el('div', 'chips');
+        for (const pair of nearWords) {
+            const otherId = pair.a === word.id ? pair.b : pair.a;
+            const other = dictionary.words.find(candidate => candidate.id === otherId);
+            if (!other) continue;
+            chips.appendChild(el('a', 'chip', other.text, `${base}/words/${encodeURIComponent(other.text)}`));
+        }
+        section.appendChild(chips);
+        entry.appendChild(section);
+    }
+
+    const actions = el('div', 'entry-actions');
+    actions.appendChild(el('a', 'btn btn-primary', 'Jouer', `${base}/game`));
+    actions.appendChild(el('a', 'btn btn-secondary', 'Tous les mots', `${base}/words`));
+    entry.appendChild(actions);
+
+    root.appendChild(entry);
+}
+
+// ---------------------------------------------------------------------------
 // Câblage au chargement
 // ---------------------------------------------------------------------------
 
@@ -941,17 +1039,25 @@ if (typeof document !== 'undefined') {
     if (resultRoot || categoryGrid) {
         saveState(storage, state, language);
     }
-    if (gameRoot) {
+    if (gameRoot && typeof location !== 'undefined') {
+        const pathSegments = location.pathname.split('/');
+        const wordIndex = pathSegments.indexOf('words');
+        const wordText =
+            wordIndex !== -1 && pathSegments.length > wordIndex + 1 ? decodeURIComponent(pathSegments[wordIndex + 1]) : null;
         const dictionaryUrl = document.body.dataset.dictionary;
         fetch(dictionaryUrl)
             .then(response => response.json())
             .then(dictionary => {
-                startGame(gameRoot, dictionary, { base, language, storage, state });
+                if (wordText !== null && location.pathname.startsWith(`${base}/words/`)) {
+                    renderWordPage(gameRoot, dictionary, wordText, base, state);
+                } else {
+                    startGame(gameRoot, dictionary, { base, language, storage, state });
+                }
             })
             .catch(() => {
                 gameRoot.appendChild(el('p', 'page-sub', 'Le dictionnaire n’a pas pu être chargé.'));
             });
-        if ('serviceWorker' in navigator) {
+        if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
             navigator.serviceWorker.register(`${document.body.dataset.root ?? ''}/sw.js`).catch(() => {});
         }
     }

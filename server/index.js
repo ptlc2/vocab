@@ -22,7 +22,7 @@ app.locals.description =
 app.locals.difficulties = Difficulties;
 app.locals.rootBase = deploymentBase;
 app.locals.cssVersion = 5;
-app.locals.jsVersion = 20;
+app.locals.jsVersion = 21;
 
 function setDefaultLocals(res) {
     if (!res.locals.language) {
@@ -131,14 +131,10 @@ router.get('/words', async (req, res) => {
     res.render('words', { words, groups, categories, q, category, total, page, pageCount });
 });
 
-// Word route
+// Word route: the same shell as the game — the engine renders the fiche from the dictionary (URL decides)
 router.get('/words/:word', async (req, res) => {
-    const word = await Vocab.getWordByText(req.params.word, res.locals.language);
-    if (word) {
-        res.render('word', { word });
-    } else {
-        res.status(404).render('error', { code: 404, message: 'Mot non trouvé' });
-    }
+    const dictionaryVersion = await getDictionaryVersion(res.locals.language);
+    res.render('game', { dictionaryUrl: `${res.locals.base}/dictionary.json?v=${dictionaryVersion}` });
 });
 
 // Game route: static shell, the engine (client) does everything.
