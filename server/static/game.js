@@ -910,5 +910,8 @@ if (typeof document !== 'undefined') {
             .catch(() => {
                 gameRoot.appendChild(el('p', 'page-sub', 'Le dictionnaire n’a pas pu être chargé.'));
             });
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(`${document.body.dataset.root ?? ''}/sw.js`).catch(() => {});
+        }
     }
 }

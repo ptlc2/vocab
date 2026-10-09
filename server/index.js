@@ -22,7 +22,7 @@ app.locals.description =
 app.locals.difficulties = Difficulties;
 app.locals.rootBase = deploymentBase;
 app.locals.cssVersion = 5;
-app.locals.jsVersion = 17;
+app.locals.jsVersion = 18;
 
 function setDefaultLocals(res) {
     if (!res.locals.language) {
@@ -141,9 +141,10 @@ router.get('/words/:word', async (req, res) => {
     }
 });
 
-// Game route: static shell, the engine (client) does everything
+// Game route: static shell, the engine (client) does everything.
+// La coquille est la même pour toutes les sessions -> cacheable par le service worker,
+// la version du dictionnaire voyage dans le HTML (data-dictionary) pour casser le cache.
 router.get('/game', async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
     const dictionaryVersion = await getDictionaryVersion(res.locals.language);
     res.render('game', { dictionaryUrl: `${res.locals.base}/dictionary.json?v=${dictionaryVersion}` });
 });

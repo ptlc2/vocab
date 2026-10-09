@@ -6,10 +6,13 @@
     <meta name="description" content="<%= description %>">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23241f18'/%3E%3Ctext x='32' y='45' font-family='Georgia,serif' font-style='italic' font-size='38' fill='%23f3ead8' text-anchor='middle'%3EV%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="<%= rootBase %>/style.css?v=<%= cssVersion %>">
+    <link rel="manifest" href="<%= rootBase %>/manifest.json">
+    <meta name="theme-color" content="#241f18">
     <title><%= title %> · Vocab</title>
 </head>
 <body
     data-base="<%= base %>"
+    data-root="<%= rootBase %>"
     data-language="<%= language %>"
     data-difficulties="<%= JSON.stringify(difficulties) %>"
     <%_ if (locals.dictionaryUrl) { _%>data-dictionary="<%= dictionaryUrl %>" <%_ } _%>
