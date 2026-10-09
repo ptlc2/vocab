@@ -521,6 +521,21 @@ function pickRoundWord(mode, state, dictionary, category, rand) {
         const pair = candidates.length > 0 ? pickFrom(candidates, rand) : pickFrom(pairs, rand);
         return byId.get(rand() < 0.5 ? pair.a : pair.b);
     }
+    if (mode === 'frappe-contexte') {
+        const pairs = pairsFor(dictionary);
+        const byId = wordsById(dictionary);
+        const candidates = pairs.filter(pair => {
+            const a = state.words[pair.a]?.box ?? 0;
+            const b = state.words[pair.b]?.box ?? 0;
+            const aOk = a >= 3 && inCategory(byId.get(pair.a) ?? {}, category);
+            const bOk = b >= 3 && inCategory(byId.get(pair.b) ?? {}, category);
+            return category ? aOk || bOk : a >= 3 || b >= 3;
+        });
+        if (candidates.length === 0) return null;
+        const pair = pickFrom(candidates, rand);
+        const targetBox = state.words[pair.a]?.box ?? 0;
+        return byId.get((state.words[pair.b]?.box ?? 0) > targetBox ? pair.b : pair.a);
+    }
     return null;
 }
 
