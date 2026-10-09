@@ -8,7 +8,12 @@
     <link rel="stylesheet" href="<%= rootBase %>/style.css?v=<%= cssVersion %>">
     <title><%= title %> · Vocab</title>
 </head>
-<body data-base="<%= base %>" data-language="<%= language %>" data-difficulties="<%= JSON.stringify(difficulties) %>">
+<body
+    data-base="<%= base %>"
+    data-language="<%= language %>"
+    data-difficulties="<%= JSON.stringify(difficulties) %>"
+    <%_ if (locals.dictionaryUrl) { _%>data-dictionary="<%= dictionaryUrl %>" <%_ } _%>
+>
     <header class="site-header">
         <div class="container">
             <a class="brand" href="<%= base %>/">Vocab<span class="brand-dot">.</span></a>

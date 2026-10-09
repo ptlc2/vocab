@@ -34,4 +34,12 @@ export default [
             globals: globals.browser,
         },
     },
+    {
+        files: ['tests/*.dom.test.mjs'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+            globals: { ...globals.browser, ...globals.node },
+        },
+    },
 ];

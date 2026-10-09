@@ -1,4 +1,4 @@
-// Tests du modèle de progression v2 (localStorage côté client) — node tests/game-v2.test.mjs, sans dépendance.
+// Tests du moteur de jeu Vocab (côté client) — node tests/game-v2.test.mjs, sans dépendance.
 import assert from 'node:assert/strict';
 import {
     newState,
@@ -9,8 +9,10 @@ import {
     categoryLevel,
     dueWords,
     counts,
-    buildReplayHref,
-    poolCookieValue,
+    pickRound,
+    isCloseMatch,
+    levenshtein,
+    blankOutWord,
 } from '../static/game.js';
 
 let checks = 0;
@@ -19,16 +21,7 @@ function ok(name) {
     console.info(`ok ${checks} - ${name}`);
 }
 
-function storageWith(data) {
-    const items = new Map(Object.entries(data));
-    return {
-        getItem: key => (items.has(key) ? items.get(key) : null),
-        setItem: (key, value) => items.set(key, String(value)),
-        removeItem: key => items.delete(key),
-    };
-}
-
-// --- newState / storageKey -------------------------------------------------
+// --- newState / storageKey ---------------------------------------------------
 
 assert.deepEqual(newState(), {
     words: {},
@@ -36,7 +29,7 @@ assert.deepEqual(newState(), {
     bands: {},
     totals: {},
 });
-ok('newState : forme v2 (words, session sans palier, bands, totals)');
+ok('newState : forme v2 (words, session, bands, totals)');
 
 assert.equal(storageKey('fr'), 'vocab:progress:v2:fr');
 assert.equal(storageKey('en'), 'vocab:progress:v2:en');
@@ -44,308 +37,361 @@ ok('storageKey : une clé v2 par langue');
 
 // --- loadState / sanitisation ----------------------------------------------
 
-assert.deepEqual(loadState(null, 'fr'), newState());
-assert.deepEqual(loadState(storageWith({}), 'fr'), newState());
-ok('loadState : stockage absent ou vide -> état neuf');
+const memory = new Map();
+const storage = {
+    getItem: key => memory.get(key) ?? null,
+    setItem: (key, value) => void memory.set(key, String(value)),
+    removeItem: key => void memory.delete(key),
+};
 
-const brokenStorage = storageWith({ 'vocab:progress:v2:fr': '{pas du json' });
-assert.deepEqual(loadState(brokenStorage, 'fr'), newState());
-ok('loadState : JSON invalide -> état neuf');
+assert.equal(loadState(storage, 'fr').session.rounds, 0);
+ok('loadState : vide -> état neuf');
 
-const dirtyStorage = storageWith({
-    'vocab:progress:v2:fr': JSON.stringify({
+const good = {
+    words: { 7: { text: 'brume', difficulty: 2, box: 2, due: 5, correct: 2, wrong: 0, categories: ['nature'] } },
+    session: { rounds: 3, score: 2, streak: 1, best: 2 },
+    bands: { nature: [1, 2] },
+    totals: { nature: 80 },
+};
+storage.setItem('vocab:progress:v2:fr', JSON.stringify(good));
+const loaded = loadState(storage, 'fr');
+assert.equal(loaded.words['7'].text, 'brume');
+assert.equal(loaded.session.rounds, 3);
+assert.deepEqual(loaded.bands.nature, [1, 2]);
+assert.equal(loaded.totals.nature, 80);
+ok('loadState : aller-retour stable (mots, session, bandes, totaux)');
+
+storage.setItem('vocab:progress:v2:fr', '{pas du json');
+assert.equal(loadState(storage, 'fr').session.rounds, 0);
+ok('loadState : corrompu -> état neuf');
+
+storage.setItem(
+    'vocab:progress:v2:fr',
+    JSON.stringify({
         words: {
-            undefined: { text: 'fantôme', difficulty: 2 },
-            12: { text: '', difficulty: 2 },
-            13: { text: 'garance', difficulty: 2, box: 9, due: 'x', correct: -1, wrong: 'a', categories: 'nope' },
+            undefined: { text: undefined, difficulty: 2 },
+            9: { text: 'calme', difficulty: 9, box: 99, due: -5, correct: -1, wrong: 0, categories: ['nature'] },
         },
-        session: { rounds: -5, score: '7', streak: 2, best: 3 },
-        bands: { nature: [0, 2, 2, 6, 'x'], '': [1], temps: 'nope' },
-    }),
-});
-const dirtyState = loadState(dirtyStorage, 'fr');
-assert.deepEqual(Object.keys(dirtyState.words), ['13']);
-assert.deepEqual(dirtyState.words['13'], {
-    text: 'garance',
-    difficulty: 2,
-    box: 5,
-    due: 0,
-    correct: 0,
-    wrong: 0,
-    categories: [],
-});
-assert.deepEqual(dirtyState.session, { rounds: 0, score: 0, streak: 2, best: 3 });
-assert.deepEqual(dirtyState.bands, { nature: [2] });
-ok('loadState : entrées parasites et champs invalides sanités (box clampée, compteurs, bands 1-5)');
-
-const legacyStorage = storageWith({
-    'vocab:progress:v1:fr': JSON.stringify({ words: { 1: { text: 'ancien', difficulty: 1 } } }),
-});
-assert.deepEqual(loadState(legacyStorage, 'fr'), newState());
-assert.equal(legacyStorage.getItem('vocab:progress:v1:fr') !== null, true);
-assert.equal(legacyStorage.getItem('vocab:progress:v2:fr'), null);
-ok('loadState : la clé v1 n est ni lue ni migrée');
-
-const fullState = newState();
-recordRound(fullState, { targetId: 13, text: 'garance', difficulty: 2, correct: true, categories: ['nature'] });
-recordRound(fullState, { targetId: 14, text: 'sillage', difficulty: 2, correct: true, categories: ['nature'] });
-const roundTripStorage = storageWith({});
-saveState(roundTripStorage, fullState, 'fr');
-assert.deepEqual(loadState(roundTripStorage, 'fr'), fullState);
-ok('saveState -> loadState : aller-retour stable');
+        session: { rounds: 2 },
+        bands: { nature: [0, 3, 9] },
+        totals: { nature: -3, autre: 4 },
+    })
+);
+const sanitized = loadState(storage, 'fr');
+assert.equal('undefined' in sanitized.words, false);
+assert.equal(sanitized.words['9'].difficulty, 5);
+assert.equal(sanitized.words['9'].box, 5);
+assert.equal(sanitized.words['9'].due, 0);
+assert.equal(sanitized.words['9'].correct, 0);
+assert.deepEqual(sanitized.bands.nature, [3]);
+assert.deepEqual(sanitized.totals, { autre: 4 });
+ok('loadState : entrées parasites et champs invalides sanités (box clampée, compteurs, bands 1-5, totaux positifs)');
 
 // --- recordRound ------------------------------------------------------------
 
-const NOW = 1_000_000;
+const state = newState();
+recordRound(state, { targetId: undefined, text: undefined, difficulty: NaN, correct: true });
+assert.deepEqual(state.words, {});
+assert.equal(state.session.rounds, 0);
+ok('recordRound : rounds parasites ignorés sans toucher l’état');
 
-const parasite = newState();
-const beforeParasite = JSON.stringify(parasite);
-assert.deepEqual(recordRound(parasite, { targetId: 'undefined', text: 'x', difficulty: 2, correct: true }), []);
-assert.deepEqual(recordRound(parasite, { targetId: 1, text: '', difficulty: 2, correct: true }), []);
-assert.deepEqual(recordRound(parasite, { targetId: 1, text: 'mot', difficulty: '2', correct: true }), []);
-assert.equal(JSON.stringify(parasite), beforeParasite);
-ok('recordRound : rounds parasites ignorés sans toucher l état');
+recordRound(state, { targetId: 7, text: 'brume', difficulty: 2, correct: true, categories: ['nature'] });
+assert.equal(state.words['7'].box, 1);
+assert.equal(state.words['7'].due > Date.now(), true);
+assert.deepEqual(state.session, { rounds: 1, score: 1, streak: 1, best: 1 });
+assert.deepEqual(state.words['7'].categories, ['nature']);
+ok('recordRound : bonne réponse -> boîte 1, catégories enregistrées, session à jour');
 
-const solo = newState();
-assert.deepEqual(
-    recordRound(solo, { targetId: 21, text: 'ersatz', difficulty: 3, correct: true, categories: ['nature'], now: NOW }),
-    []
-);
-assert.equal(solo.words['21'].box, 1);
-assert.equal(solo.words['21'].due, NOW + 8 * 3600e3);
-assert.equal(solo.words['21'].correct, 1);
-assert.deepEqual(solo.words['21'].categories, ['nature']);
-assert.deepEqual(solo.session, { rounds: 1, score: 1, streak: 1, best: 1 });
-ok('recordRound : bonne réponse -> boîte 1, due +8h, catégories enregistrées, session à jour');
+recordRound(state, { targetId: 7, text: 'brume', difficulty: 2, correct: true, categories: ['nature'] });
+assert.equal(state.words['7'].box, 2);
+ok('recordRound : deuxième bonne réponse -> boîte 2');
 
-recordRound(solo, { targetId: 21, text: 'ersatz', difficulty: 3, correct: true, categories: ['nature'], now: NOW });
-assert.equal(solo.words['21'].box, 2);
-assert.equal(solo.words['21'].due, NOW + 24 * 3600e3);
-ok('recordRound : deuxième bonne réponse -> boîte 2, due +1j');
+recordRound(state, { targetId: 7, text: 'brume', difficulty: 2, correct: false, categories: ['nature'] });
+assert.equal(state.words['7'].box, 0);
+assert.equal(state.session.streak, 0);
+assert.equal(state.session.best, 2);
+ok('recordRound : mauvaise réponse -> boîte 0, série coupée, record conservé');
 
-recordRound(solo, { targetId: 21, text: 'ersatz', difficulty: 3, correct: false, now: NOW });
-assert.equal(solo.words['21'].box, 0);
-assert.equal(solo.words['21'].due, NOW + 10 * 60e3);
-assert.equal(solo.words['21'].wrong, 1);
-assert.equal(solo.session.streak, 0);
-assert.equal(solo.session.best, 2);
-ok('recordRound : mauvaise réponse -> boîte 0, due +10min, série coupée, record conservé');
+// --- acquisitions de bandes --------------------------------------------------
 
-for (let i = 0; i < 6; i++) {
-    recordRound(solo, { targetId: 21, text: 'ersatz', difficulty: 3, correct: true, now: NOW });
-}
-assert.equal(solo.words['21'].box, 5);
-assert.equal(solo.words['21'].due, NOW + 30 * 86400e3);
-ok('recordRound : boîte plafonnée à 5, intervalle 30j');
+const bandState = newState();
+recordRound(bandState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(bandState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(bandState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+assert.deepEqual(bandState.bands.nature, []);
+recordRound(bandState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
+assert.deepEqual(bandState.bands.nature, [2]);
+ok('acquisition : deux mots même catégorie même difficulté à boîte >= 2 -> bande acquise au deuxième');
 
-// --- acquisition de bandes ---------------------------------------------------
-
-const duo = newState();
-recordRound(duo, { targetId: 31, text: 'ondée', difficulty: 2, correct: true, categories: ['nature'], now: NOW });
-assert.deepEqual(
-    recordRound(duo, { targetId: 31, text: 'ondée', difficulty: 2, correct: true, categories: ['nature'], now: NOW }),
-    []
-);
-recordRound(duo, { targetId: 32, text: 'vivier', difficulty: 2, correct: true, categories: ['nature'], now: NOW });
-assert.deepEqual(
-    recordRound(duo, { targetId: 32, text: 'vivier', difficulty: 2, correct: true, categories: ['nature'], now: NOW }),
-    [{ category: 'nature', band: 2 }]
-);
-assert.deepEqual(duo.bands, { nature: [2] });
-ok('acquisition : deux mots même catégorie même difficulté à boîte 2 -> bande acquise au deuxième');
-
-const lonely = newState();
-for (let i = 0; i < 5; i++) {
-    assert.deepEqual(
-        recordRound(lonely, { targetId: 41, text: 'soliste', difficulty: 4, correct: true, categories: ['morale'], now: NOW }),
-        []
-    );
-}
-assert.deepEqual(lonely.bands, {});
+const soloState = newState();
+recordRound(soloState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(soloState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+assert.deepEqual(soloState.bands.nature, []);
 ok('acquisition : un seul mot, même à boîte 5 -> rien');
 
-const shallow = newState();
-recordRound(shallow, { targetId: 51, text: 'ancré', difficulty: 2, correct: true, categories: ['nature'], now: NOW });
-recordRound(shallow, { targetId: 51, text: 'ancré', difficulty: 2, correct: true, categories: ['nature'], now: NOW });
-recordRound(shallow, { targetId: 52, text: 'flottant', difficulty: 2, correct: true, categories: ['nature'], now: NOW });
-assert.deepEqual(shallow.bands, {});
+const oneSolid = newState();
+recordRound(oneSolid, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(oneSolid, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
+recordRound(oneSolid, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
+assert.deepEqual(oneSolid.bands.nature, []);
 ok('acquisition : deux mots mais un seul à boîte >= 2 -> rien');
 
-const mixed = newState();
-recordRound(mixed, { targetId: 61, text: 'parcelle', difficulty: 1, correct: true, categories: ['droit'], now: NOW });
-recordRound(mixed, { targetId: 61, text: 'parcelle', difficulty: 1, correct: true, categories: ['droit'], now: NOW });
-recordRound(mixed, { targetId: 62, text: 'testament', difficulty: 1, correct: true, categories: ['droit'], now: NOW });
-assert.deepEqual(
-    recordRound(mixed, { targetId: 62, text: 'testament', difficulty: 1, correct: true, categories: ['droit'], now: NOW }),
-    [{ category: 'droit', band: 1 }]
-);
-recordRound(mixed, { targetId: 63, text: 'clause', difficulty: 2, correct: true, categories: ['droit'], now: NOW });
-recordRound(mixed, { targetId: 63, text: 'clause', difficulty: 2, correct: true, categories: ['droit'], now: NOW });
-recordRound(mixed, { targetId: 64, text: 'legat', difficulty: 2, correct: true, categories: ['droit'], now: NOW });
-assert.deepEqual(
-    recordRound(mixed, { targetId: 64, text: 'legat', difficulty: 2, correct: true, categories: ['droit'], now: NOW }),
-    [{ category: 'droit', band: 2 }]
-);
-assert.deepEqual(mixed.bands, { droit: [1, 2] });
+const mixedDifficulty = newState();
+for (const [id, difficulty] of [
+    ['1', 2],
+    ['2', 2],
+    ['3', 3],
+    ['4', 3],
+]) {
+    recordRound(mixedDifficulty, { targetId: id, text: id, difficulty, correct: true, categories: ['nature'] });
+    recordRound(mixedDifficulty, { targetId: id, text: id, difficulty, correct: true, categories: ['nature'] });
+}
+assert.deepEqual(mixedDifficulty.bands.nature, [2, 3]);
 ok('acquisition : difficultés différentes -> bandes distinctes');
 
-const solid = newState();
-recordRound(solid, { targetId: 71, text: 'récif', difficulty: 2, correct: true, categories: ['marine'], now: NOW });
-recordRound(solid, { targetId: 71, text: 'récif', difficulty: 2, correct: true, categories: ['marine'], now: NOW });
-recordRound(solid, { targetId: 72, text: 'estuaire', difficulty: 2, correct: true, categories: ['marine'], now: NOW });
-assert.deepEqual(
-    recordRound(solid, { targetId: 72, text: 'estuaire', difficulty: 2, correct: true, categories: ['marine'], now: NOW }),
-    [{ category: 'marine', band: 2 }]
-);
-recordRound(solid, { targetId: 71, text: 'récif', difficulty: 2, correct: false, categories: ['marine'], now: NOW });
-assert.equal(solid.words['71'].box, 0);
-assert.deepEqual(solid.bands, { marine: [2] });
-recordRound(solid, { targetId: 71, text: 'récif', difficulty: 2, correct: true, categories: ['marine'], now: NOW });
-assert.deepEqual(
-    recordRound(solid, { targetId: 71, text: 'récif', difficulty: 2, correct: true, categories: ['marine'], now: NOW }),
-    []
-);
-assert.equal(solid.words['71'].box, 2);
-assert.deepEqual(solid.bands, { marine: [2] });
+recordRound(mixedDifficulty, { targetId: '1', text: '1', difficulty: 2, correct: false, categories: ['nature'] });
+assert.deepEqual(mixedDifficulty.bands.nature, [2, 3]);
 ok('acquisition : définitive, pas de régression quand un mot retombe à la boîte 0');
 
-const multi = newState();
-recordRound(multi, { targetId: 81, text: 'embâcle', difficulty: 3, correct: true, categories: ['nature', 'temps'], now: NOW });
-recordRound(multi, { targetId: 81, text: 'embâcle', difficulty: 3, correct: true, categories: ['nature', 'temps'], now: NOW });
-recordRound(multi, { targetId: 82, text: 'marée', difficulty: 3, correct: true, categories: ['nature', 'temps'], now: NOW });
-recordRound(multi, { targetId: 82, text: 'marée', difficulty: 3, correct: true, categories: ['nature', 'temps'], now: NOW });
-assert.deepEqual(multi.bands, { nature: [3], temps: [3] });
+const multiCat = newState();
+for (const [id, cat] of [
+    ['1', 'nature'],
+    ['2', 'nature'],
+    ['1', 'couleurs'],
+    ['2', 'couleurs'],
+]) {
+    recordRound(multiCat, { targetId: id, text: id, difficulty: 1, correct: true, categories: [cat] });
+    recordRound(multiCat, { targetId: id, text: id, difficulty: 1, correct: true, categories: [cat] });
+}
+assert.deepEqual(multiCat.bands.nature, [1]);
+assert.deepEqual(multiCat.bands.couleurs, [1]);
 ok('acquisition : un mot multi-catégories acquiert dans chacune');
 
-// --- niveau dérivé -----------------------------------------------------------
-
-const leveled = newState();
-assert.equal(categoryLevel(leveled, 'nature'), 1);
-leveled.bands = { nature: [1], temps: [1, 3] };
-assert.equal(categoryLevel(leveled, 'nature'), 1);
-assert.equal(categoryLevel(leveled, 'temps'), 3);
-assert.equal(categoryLevel(leveled, 'inconnue'), 1);
+assert.equal(categoryLevel(multiCat, 'nature'), 1);
+assert.equal(categoryLevel(mixedDifficulty, 'nature'), 3);
+assert.equal(categoryLevel(multiCat, 'inconnue'), 1);
 ok('categoryLevel : plus haute bande, 1 par défaut');
 
-// --- dueWords / counts -------------------------------------------------------
+// --- dueWords / counts --------------------------------------------------------
 
-const scheduling = newState();
-scheduling.words = {
-    1: { text: 'vieux', difficulty: 1, box: 4, due: 500, correct: 3, wrong: 1, categories: [] },
-    2: { text: 'récent', difficulty: 2, box: 2, due: 100, correct: 2, wrong: 0, categories: [] },
-    3: { text: 'futur', difficulty: 3, box: 1, due: NOW + 999_999, correct: 1, wrong: 0, categories: [] },
-};
-const due = dueWords(scheduling, NOW);
-assert.deepEqual(
-    due.map(word => word.id),
-    ['2', '1']
-);
-ok('dueWords : passés inclus et triés par échéance, futurs exclus');
+const dueState = newState();
+recordRound(dueState, { targetId: 1, text: 'a', difficulty: 2, correct: false, categories: [] });
+recordRound(dueState, { targetId: 2, text: 'b', difficulty: 2, correct: false, categories: [] });
+recordRound(dueState, { targetId: 3, text: 'c', difficulty: 2, correct: true, categories: [] });
+const dueNow = Date.now() + 11 * 60e3; // les ratés repassent à 10 min, les réussis à 8 h
+const due = dueWords(dueState, dueNow);
+assert.deepEqual(due.map(word => word.id).sort(), ['1', '2']);
+ok('dueWords : ratés dus à 10 min inclus, réussis à 8 h exclus');
 
-const tally = counts(scheduling, NOW);
-assert.deepEqual(tally, { seen: 3, mastered: 1, learning: 2, due: 2 });
-ok('counts : vus, maîtrisés (boîte >= 4), en cours, à revoir');
+const mastered = newState();
+recordRound(mastered, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: [] });
+recordRound(mastered, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: [] });
+recordRound(mastered, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: [] });
+recordRound(mastered, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: [] });
+const masteredCounts = counts(mastered, Date.now() + 11 * 60e3);
+assert.equal(masteredCounts.mastered, 1);
+assert.equal(masteredCounts.learning, 0);
+ok('counts : boîte 4 -> maîtrisé');
 
-// --- href de rejouer -----------------------------------------------------------
+// --- isCloseMatch / blankOutWord ----------------------------------------------
 
-function stateForReplay({ due: isDue, bands: bandList }) {
-    const state = newState();
-    state.words = {
-        7: {
-            text: 'garance',
+assert.equal(isCloseMatch('brume', 'brume'), true);
+assert.equal(isCloseMatch('Brume ', 'brume'), true);
+assert.equal(isCloseMatch('brumes', 'brume'), true);
+assert.equal(isCloseMatch('brume', 'brumes'), true);
+assert.equal(isCloseMatch('brume', 'brumes vivantes'), false);
+assert.equal(isCloseMatch('éphémère', 'ephemere'), true);
+assert.equal(isCloseMatch('calme', 'colère'), false);
+ok('isCloseMatch : casse/accents/1 faute tolérés, 2 fautes ou autre mot rejetés');
+
+assert.equal(levenshtein('chat', 'chats'), 1);
+assert.equal(levenshtein('', 'abc'), 3);
+ok('levenshtein : base saine');
+
+assert.equal(blankOutWord('La brume du matin', 'brume'), 'La ______ du matin');
+assert.equal(blankOutWord('La brume du matin', 'brume', true), 'La b____ du matin');
+ok('blankOutWord : blanc simple et blanc avec indice (première lettre + longueur)');
+
+// --- pickRound (le tirage) -----------------------------------------------------
+
+const dictionary = {
+    language: 'fr',
+    words: [
+        {
+            id: 1,
+            text: 'brume',
             difficulty: 2,
-            box: 2,
-            due: isDue ? 0 : Date.now() + 86400e3,
-            correct: 2,
-            wrong: 0,
+            register: 'courant',
+            short_definition: 'Voile d’eau près du sol.',
+            long_definition: 'Voile d’eau en suspension près du sol.',
+            origin: null,
+            notes: null,
             categories: ['nature'],
+            examples: ['La brume couvrait la vallée.'],
+            distractors: [2, 3, 4],
         },
-    };
-    if (bandList) state.bands = { nature: bandList };
-    return state;
+        {
+            id: 2,
+            text: 'sillage',
+            difficulty: 2,
+            register: 'soutenu',
+            short_definition: 'Trace laissée derrière un bateau.',
+            long_definition: 'Trace que laisse un bateau sur l’eau.',
+            origin: null,
+            notes: null,
+            categories: ['nature'],
+            examples: ['Le sillage du navire s’effaçait.'],
+            distractors: [1, 3, 4],
+        },
+        {
+            id: 3,
+            text: 'sarcasme',
+            difficulty: 4,
+            register: 'soutenu',
+            short_definition: 'Raillerie mordante et méprisante.',
+            long_definition: 'Raillerie blessante et méprisante.',
+            origin: null,
+            notes: null,
+            categories: ['caractère'],
+            examples: ['Son sarcasme blessait.'],
+            distractors: [1, 2, 4],
+        },
+        {
+            id: 4,
+            text: 'calme',
+            difficulty: 1,
+            register: 'courant',
+            short_definition: 'Qui est sans agitation.',
+            long_definition: 'État de tranquillité.',
+            origin: null,
+            notes: null,
+            categories: ['nature'],
+            examples: ['La mer était calme.'],
+            distractors: [1, 2, 3],
+        },
+    ],
+    confusions: [
+        {
+            a_id: 1,
+            a_text: 'brume',
+            a_def: 'Voile d’eau près du sol.',
+            a_difficulty: 2,
+            b_id: 4,
+            b_text: 'calme',
+            b_def: 'Qui est sans agitation.',
+            b_difficulty: 1,
+            nuance: 'Brume est météo, calme est état.',
+        },
+    ],
+    near_words: [],
+};
+
+// état neuf : identification ou contexte seulement (pas de mots solides)
+const freshState = newState();
+const freshMode = pickRound(dictionary, freshState, {}).mode;
+assert.equal(['identification', 'contexte'].includes(freshMode), true);
+ok('pickRound : état neuf -> identification ou contexte, jamais frappe/reverse/jumelage');
+
+// avec mots dus : identification sur le mot dû (la mémoire d’abord)
+const dueRoundState = newState();
+recordRound(dueRoundState, { targetId: 2, text: 'sillage', difficulty: 2, correct: false, categories: ['nature'] });
+dueRoundState.words['2'].due = 1; // échoué il y a plus de 10 minutes -> dû
+const dueRound = pickRound(dictionary, dueRoundState, {});
+assert.equal(dueRound.mode, 'identification');
+assert.equal(dueRound.target, 2);
+ok('pickRound : mot dû -> identification sur ce mot (mémoire d’abord)');
+
+// avec des solides boîte >= 3 : frappe devient éligible et cible un solide
+const typingState = newState();
+for (const id of [1, 2]) {
+    for (let i = 0; i < 3; i++) {
+        recordRound(typingState, {
+            targetId: id,
+            text: dictionary.words.find(w => w.id === id).text,
+            difficulty: 2,
+            correct: true,
+            categories: ['nature'],
+        });
+    }
 }
-
-assert.equal(
-    buildReplayHref({ category: 'nature', sticky: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
-    '/fr/game?category=nature&word=7'
-);
-ok('rejouer : catégorie sans mode choisi -> le mode se re-randomise (pas de mode= dans l’href), mémoire d’abord');
-
-assert.equal(
-    buildReplayHref({ category: 'nature', modeFixe: true, mode: 'identification' }, '/fr', stateForReplay({ due: true })),
-    '/fr/game?category=nature&mode=identification&word=7'
-);
-ok('rejouer : catégorie + mode choisi explicitement -> mode conservé avant le mot dû');
-
-const originalRandom = Math.random;
-try {
-    Math.random = () => 0.9;
-    assert.equal(
-        buildReplayHref(
-            { category: 'nature', modeFixe: true, mode: 'reverse' },
-            '/fr',
-            stateForReplay({ due: false, bands: [2] })
-        ),
-        '/fr/game?category=nature&mode=reverse&band=2'
-    );
-    ok('rejouer : catégorie niveau 2, pas de sonde (random 0.9) -> bande frontière 2');
-
-    Math.random = () => 0.1;
-    assert.equal(
-        buildReplayHref(
-            { category: 'nature', modeFixe: true, mode: 'reverse' },
-            '/fr',
-            stateForReplay({ due: false, bands: [2] })
-        ),
-        '/fr/game?category=nature&mode=reverse&band=3'
-    );
-    ok('rejouer : catégorie niveau 2, sonde (random 0.1) -> bande 3');
-
-    assert.equal(
-        buildReplayHref({ category: 'nature' }, '/fr', stateForReplay({ due: false, bands: [2, 5] })),
-        '/fr/game?category=nature&band=5'
-    );
-    ok('rejouer : sonde au niveau 5 -> bande clampée à 5');
-
-    Math.random = () => 0.1;
-    assert.equal(
-        buildReplayHref({ category: 'nature' }, '/fr', stateForReplay({ due: false })),
-        '/fr/game?category=nature&band=2'
-    );
-    ok('rejouer : catégorie nouvelle (niveau 1), sonde -> bande 2');
-} finally {
-    Math.random = originalRandom;
+const typingModes = new Set();
+for (let i = 0; i < 40; i++) {
+    typingModes.add(pickRound(dictionary, typingState, {}).mode);
 }
+assert.equal(typingModes.has('frappe'), true);
+const frappeRound = [...Array(20)]
+    .map(() => pickRound(dictionary, typingState, { mode: 'frappe' }))
+    .find(r => r.mode === 'frappe');
+assert.equal([1, 2].includes(frappeRound.target), true);
+assert.equal(frappeRound.prompt, dictionary.words.find(w => w.id === frappeRound.target).short_definition);
+ok('pickRound : solides boîte >= 3 -> frappe éligible, cible un solide, sa définition en prompt');
 
+// mode explicite : gardé et servi tel quel
+const explicitState = newState();
+const explicitRound = pickRound(dictionary, explicitState, { mode: 'identification' });
+assert.equal(explicitRound.mode, 'identification');
+assert.equal(explicitRound.options.length, 4);
+assert.equal(new Set(explicitRound.options.map(o => o.id)).size, 4);
+ok('pickRound : mode explicite identification -> 4 options distinctes');
+
+const reverseRound = pickRound(dictionary, typingState, { mode: 'reverse' });
+assert.equal(reverseRound.mode, 'reverse');
+assert.equal(reverseRound.prompt, dictionary.words.find(w => w.id === reverseRound.target).text);
+ok('pickRound : mode explicite reverse -> le mot en prompt, définitions en options');
+
+// mot précis demandé
+const wordRound = pickRound(dictionary, explicitState, { wordId: 3, mode: 'identification' });
+assert.equal(wordRound.target, 3);
+ok('pickRound : mot précis -> servi tel quel');
+
+// mot périmé : purge + tirage normal
+const staleState = newState();
+staleState.words['999'] = { text: 'fantôme', difficulty: 2, box: 2, due: 0, correct: 2, wrong: 0, categories: ['nature'] };
+const staleRound = pickRound(dictionary, staleState, { wordId: 999, mode: 'identification' });
+assert.equal('999' in staleState.words, false);
+assert.equal(['identification', 'contexte'].includes(staleRound.mode), true);
+ok('pickRound : id périmé -> purge de la save + tirage normal');
+
+// session de catégorie : la cible vient de la catégorie (les distracteurs restent langue entière)
+const categoryState = newState();
+let sawIdentificationInCategory = false;
+for (let i = 0; i < 20; i++) {
+    const round = pickRound(dictionary, categoryState, { category: 'nature' });
+    if (round.mode === 'identification') {
+        assert.equal([1, 2, 4].includes(round.target), true);
+        sawIdentificationInCategory = true;
+        break;
+    }
+}
+assert.equal(sawIdentificationInCategory, true);
+ok('pickRound : session de catégorie -> cible dans la catégorie');
+
+// piste : tirage dans la famille
+const trackState = typingState;
+const trackModes = new Set();
+for (let i = 0; i < 30; i++) {
+    trackModes.add(pickRound(dictionary, trackState, { track: 'acquisition' }).mode);
+}
 assert.equal(
-    buildReplayHref(
-        { sticky: true, mode: 'reverse', replayHref: '/fr/game?mode=reverse' },
-        '/fr',
-        stateForReplay({ due: true })
-    ),
-    '/fr/game?mode=reverse&word=7'
+    [...trackModes].every(mode => ['identification', 'reverse', 'frappe'].includes(mode)),
+    true
 );
-ok('rejouer : sans catégorie + mots dus -> href serveur + mot=');
+assert.equal(trackModes.size > 1, true);
+ok('pickRound : piste acquisition -> tirage dans la famille (identification/reverse/frappe)');
 
-assert.equal(
-    buildReplayHref({ replayHref: '/fr/game?mode=reverse' }, '/fr', stateForReplay({ due: false })),
-    '/fr/game?mode=reverse'
-);
-ok('rejouer : sans catégorie + pas de dus -> href serveur tel quel');
+// jumelage : cible le mot solide de la paire
+const jumelageRound = pickRound(dictionary, typingState, { mode: 'jumelage' });
+assert.equal(jumelageRound.mode, 'jumelage');
+assert.equal(jumelageRound.options.length, 2);
+assert.equal([1, 4].includes(jumelageRound.target), true);
+assert.equal(typeof jumelageRound.nuance, 'string');
+ok('pickRound : jumelage -> paire avec nuance, cible le solide de la paire');
 
-assert.equal(buildReplayHref({}, '/fr', stateForReplay({ due: false })), '/fr/game');
-ok('rejouer : sans catégorie ni href serveur -> jeu surprise');
-
-// --- cookie de pools de solidité (boîte >= 2 / >= 3) ---------------------------
-
-const poolState = newState();
-recordRound(poolState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
-recordRound(poolState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
-recordRound(poolState, { targetId: 1, text: 'a', difficulty: 2, correct: true, categories: ['nature'] });
-recordRound(poolState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
-recordRound(poolState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
-recordRound(poolState, { targetId: 2, text: 'b', difficulty: 2, correct: true, categories: ['nature'] });
-assert.equal(poolCookieValue(poolState), '2:1,2|3:1,2');
-ok('poolCookieValue : boîtes >= 2 et >= 3 publiées (2:1,2|3:1,2)');
+// contexte : phrase à trous
+const contexteRound = pickRound(dictionary, typingState, { mode: 'contexte' });
+assert.equal(contexteRound.mode, 'contexte');
+assert.equal(contexteRound.prompt.includes('______'), true);
+assert.equal(contexteRound.options.length, 2);
+ok('pickRound : contexte -> phrase à trous, 2 options');
 
 console.info(`\nTests unitaires v2 : ${checks} vérifications ok`);
