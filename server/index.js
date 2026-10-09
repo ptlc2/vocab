@@ -1,5 +1,6 @@
 import Express from 'express';
 import * as Vocab from './vocab.js';
+import { getDictionary, getDictionaryVersion } from './dictionary.js';
 import { Difficulties } from './difficulties.js';
 
 const port = process.env.PORT ?? '80';
@@ -93,6 +94,23 @@ router.get('/', async (req, res) => {
     const stats = await Vocab.getStats(res.locals.language);
     const playableCategories = await Vocab.getPlayableCategories(res.locals.language);
     res.render('index', { stats, playableCategories });
+});
+
+// Dictionary export: the whole playable data of a language, versioned and immutable-cached
+router.get('/dictionary.json', async (req, res) => {
+    const dictionary = await getDictionary(res.locals.language);
+    if (!dictionary) {
+        setDefaultLocals(res);
+        res.status(404).render('error', { code: 404, message: 'Langue sans mots' });
+        return;
+    }
+    if (req.query.v !== undefined) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+        res.redirect(302, `${res.locals.base}/dictionary.json?v=${await getDictionaryVersion(res.locals.language)}`);
+        return;
+    }
+    res.json(dictionary);
 });
 
 // Word list route
